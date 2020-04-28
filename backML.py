@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from sklearn.externals import joblib
 import pandas as pd
 import hashlib
+import re
 
 from simulations import simulate
 
@@ -36,26 +37,32 @@ def predict():
 
 @app.route('/sims/rate/<path:sim_id>')
 def send_reproduction_plots(sim_id):
+    sim_id = re.sub('[\W_]+', '', sim_id)
     return send_from_directory( "{}/{}".format(base_folder,sim_id),"reproduction_rate.png")
 
 @app.route('/sims/case/<path:sim_id>')
 def send_cases_plots(sim_id):
+    sim_id = re.sub('[\W_]+', '', sim_id)
     return send_from_directory( "{}/{}".format(base_folder,sim_id),"cases.png")
 
 @app.route('/sims/hospital/<path:sim_id>')
 def send_hospitals_plots(sim_id):
+    sim_id = re.sub('[\W_]+', '', sim_id)
     return send_from_directory( "{}/{}".format(base_folder,sim_id),"hospitals.png")
 
 @app.route('/sims/critical/<path:sim_id>')
 def send_scriticals_plots(sim_id):
+    sim_id = re.sub('[\W_]+', '', sim_id)
     return send_from_directory( "{}/{}".format(base_folder,sim_id),"criticals.png")
 
 @app.route('/sims/death/<path:sim_id>')
 def send_deaths_plots(sim_id):
+    sim_id = re.sub('[\W_]+', '', sim_id)
     return send_from_directory( "{}/{}".format(base_folder,sim_id),"deaths.png")
 
 @app.route('/sims/csv/<path:sim_id>')
 def send_csv(sim_id):
+    sim_id = re.sub('[\W_]+', '', sim_id)
     return send_from_directory( "{}/{}".format(base_folder,sim_id),"out.csv")
 
 @app.route('/', defaults={'path': ''})
