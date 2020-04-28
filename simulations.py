@@ -151,11 +151,12 @@ def update_mean(df):
 def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yvar, mlp_clf, scaler, measure_values = None,lift_date_values = None,base_folder="./plots/simulations", seed=""):
 
   init_date = df["Date"].tail(1).dt.date.values[0]
+  
   for measure_to_lift in measures_to_lift:
     country_lift = df.copy()
     current_date = init_date
 
-    folder = "{}/{}/{}".format(base_folder, seed,"_".join(measure_to_lift).replace("/",""))
+    folder = "{}/{}".format(base_folder,"_".join(measure_to_lift).replace("/","")) if seed=="" else "./plots/simulations/{}".format(seed)
     os.makedirs(folder, exist_ok=True)
     #print(folder)
 
@@ -163,12 +164,12 @@ def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yva
       current_date = current_date + timedelta(days=1)
 
       obj = {"Date":current_date}
-      if current_date >=lift_date:
-        for i, measure in enumerate(measure_to_lift):
+      
+      for i, measure in enumerate(measure_to_lift):
 
-          lift = current_date >=lift_date_values[i]  if lift_date_values is not None and len(lift_date_values)>i else current_date >=lift_date 
-          if lift:
-            obj[measure] = measure_values[i] if measure_values is not None else measure_value
+        lift = current_date >=lift_date_values[i]  if lift_date_values is not None and len(lift_date_values)>i else current_date >=lift_date 
+        if lift:
+          obj[measure] = measure_values[i] if measure_values is not None else measure_value
 
       country_lift = country_lift.append(obj,ignore_index=True)
 

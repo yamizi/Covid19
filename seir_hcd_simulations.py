@@ -32,29 +32,33 @@ merged = pd.read_csv("{}/features.csv".format(folder), parse_dates=["Date"])
 with open('{}/metrics.json'.format(folder)) as fp:
     metrics = json.load(fp)
     yvar = np.power(metrics["std_test"],0.5)
+    columns = metrics["columns"]
     #{"perf":reports,"std_test":list(ystd.values), "columns":columns}
 
 """## Simulations"""
 
 
-country_df = merged[merged["CountryName"]==country_name]
-lift_date = pd.to_datetime("2020-05-11")
-end_date = pd.to_datetime("2020-9-11")
-simulation_id = SEED
-folder = "./plots/simulations/{}/{}/run{}/lift_{}".format(country_name,current_dataset_date, str(simulation_id),str(lift_date)[0:10])
+if __name__ == '__main__':
+
+    country_df = merged[merged["CountryName"]==country_name]
+    lift_date = pd.to_datetime("2020-05-11")
+    end_date = pd.to_datetime("2020-9-11")
+    simulation_id = SEED
+    folder = "./plots/simulations/{}/{}/run{}/lift_{}".format(country_name,current_dataset_date, str(simulation_id),str(lift_date)[0:10])
 
 
-"""
-measures_to_lift = [["transit_stations","workplace"], ["transit_stations","S1_School closing"],["transit_stations","workplace","retail/recreation"],["transit_stations","retail/recreation","S7_International travel controls"]]
-simulate(country_df, measures_to_lift,0,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,base_folder=folder)
-plt.show()
+    """
+    measures_to_lift = [["transit_stations","workplace"], ["transit_stations","S1_School closing"],["transit_stations","workplace","retail/recreation"],["transit_stations","retail/recreation","S7_International travel controls"]]
+    simulate(country_df, measures_to_lift,0,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,base_folder=folder)
+    plt.show()
 
-simulate(country_df, measures_to_lift,-50,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,base_folder=folder)
-simulate(country_df, measures_to_lift,-90,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,base_folder=folder)
-"""
+    simulate(country_df, measures_to_lift,-50,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,base_folder=folder)
+    simulate(country_df, measures_to_lift,-90,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,base_folder=folder)
+    """
 
-measures_to_lift = [["transit_stations","workplace","S1_School closing"]]
-lift_date = pd.to_datetime("2020-05-11")
-end_date = pd.to_datetime("2020-9-11")
-simulate(country_df, measures_to_lift,0,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,measure_values=[-50,-32,-80],base_folder=folder,seed="LuxScenario")
-plt.show()
+    measures_to_lift = [["transit_stations","workplace","S1_School closing"]]
+    measure_values=[-50,-32,-80]
+    lift_date = pd.to_datetime("2020-05-11")
+    end_date = pd.to_datetime("2020-9-11")
+    simulate(country_df, measures_to_lift,0,end_date,lift_date,columns,yvar, mlp_clf, scaler,measure_values=measure_values,base_folder=folder,seed="LuxScenario")
+    #plt.show()
