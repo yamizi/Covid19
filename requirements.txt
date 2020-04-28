@@ -3,3 +3,5 @@ matplotlib
 numpy
 scipy
 scikit-learn
+flask
+flask-cors

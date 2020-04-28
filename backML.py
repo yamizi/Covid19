@@ -5,10 +5,13 @@ import pandas as pd
 import hashlib
 import re
 
+from flask_cors import CORS
 from simulations import simulate
 
 base_folder="./plots/simulations"
 app = Flask(__name__, static_url_path="")
+CORS(app)
+
 @app.route('/predict', methods=['POST'])
 
 def predict():
