@@ -92,9 +92,9 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
         simulations.to_csv("{}/out.csv".format(folder))
 
     fig_hospitals = plt.figure(figsize=fig_size)
-    plt.plot(dt,simulations["SimulationHospital"], label="Probable hospitalized")
-    plt.plot(dt, y_pred_hosp_min,label="Best case hospitalized")
-    plt.plot(dt, y_pred_hosp_max,label="Worst case hospitalized")
+    plt.plot(dt,simulations["SimulationHospital"]+simulations["SimulationCritical"], label="Probable hospitalized")
+    plt.plot(dt, y_pred_hosp_min+y_pred_critic_min,label="Best case hospitalized")
+    plt.plot(dt, y_pred_hosp_max+y_pred_critic_max,label="Worst case hospitalized")
     plt.xticks(dt,ticks, rotation=90)
     plt.tight_layout()
     plt.legend()
