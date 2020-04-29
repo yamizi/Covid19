@@ -5,6 +5,7 @@ import pandas as pd
 import hashlib
 import re
 
+from flask_cors import CORS
 from simulations import simulate
 
 base_folder="./plots/simulations"
@@ -12,6 +13,8 @@ base_folder="./plots/simulations"
 from seir_hcd_simulations import scaler, yvar, merged, mlp_clf, columns
 
 app = Flask(__name__, static_url_path="")
+CORS(app)
+
 @app.route('/predict', methods=['POST'])
 
 def predict():
