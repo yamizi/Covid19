@@ -8,6 +8,9 @@ import re
 from simulations import simulate
 
 base_folder="./plots/simulations"
+
+from seir_hcd_simulations import scaler, yvar, merged, mlp_clf, columns
+
 app = Flask(__name__, static_url_path="")
 @app.route('/predict', methods=['POST'])
 
@@ -22,7 +25,7 @@ def predict():
      exists = os.path.exists(path)
      nb_files = len([name for name in os.listdir(path) if os.path.isfile(name)]) if exists else 0
 
-     if nb_files == 6 :
+     if nb_files != 6 :
           measures_to_lift = [json_.get("measures")]
           measure_values=json_.get("values")
           dates=json_.get("dates")
@@ -72,5 +75,4 @@ def catch_all(path):
      
 if __name__ == '__main__':
      #clf = joblib.load('modelRt.pkl')
-     from seir_hcd_simulations import scaler, yvar, merged, mlp_clf, columns 
-     app.run(port=8080)
+     app.run(host="0.0.0.0",port=8080)

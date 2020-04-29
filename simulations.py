@@ -150,6 +150,8 @@ def update_mean(df):
 
 def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yvar, mlp_clf, scaler, measure_values = None,lift_date_values = None,base_folder="./plots/simulations", seed=""):
 
+  print("Building simulation for ",measures_to_lift, df["CountryName"].unique())
+  
   init_date = df["Date"].tail(1).dt.date.values[0]
   
   for measure_to_lift in measures_to_lift:
