@@ -19,12 +19,13 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     population = data["population"].min()
     N = population
     n_infected = data['InfectiousCases'].iloc[0]
-    n_exposed = data['ExposedCases'].iloc[0]
+    n_exposed = data['ConfirmedCases_y'].iloc[0]
     n_hospitalized = data['HospitalizedCases'].iloc[0]
     n_critical = data['CriticalCases'].iloc[0]
     n_recovered = data['RecoveredCases'].iloc[0]
+    n_deaths = data['ConfirmedDeaths'].iloc[0]
     #S, E, I, R, H, C, D
-    initial_state = [(N - n_infected)/ N, n_exposed/N, n_infected / N, n_recovered/N, n_hospitalized/N, n_critical/N, 0]
+    initial_state = [(N - n_infected)/ N, n_exposed/N, n_infected / N, n_recovered/N, n_hospitalized/N, n_critical/N, n_deaths/N]
     
     #t_hosp=4, t_crit=14, m_a=0.8, c_a=0.1, f_a=0.3
     
@@ -79,8 +80,17 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
 
     #print(l,len(y_pred_cases),y_pred_hosp_max.min(),y_pred_hosp_max.max() )
     simulations = pd.DataFrame({"Date": dates,"SimulationCases": y_pred_cases,"SimulationHospital":y_pred_hosp,"SimulationCritical":y_pred_critic,"SimulationDeaths":y_pred_deaths})
-    simulations.to_csv("{}/out.csv".format(folder))
-    #data["SimulationCases"] = [n_infected]+list(y_pred_cases)
+    simulations["SimulationHospital_min"] = y_pred_hosp_min
+    simulations["SimulationCritical_min"] = y_pred_critic_min
+    simulations["SimulationDeaths_min"] = y_pred_deaths_min
+    simulations["SimulationCases_min"] = y_pred_cases_min
+    simulations["SimulationHospital_max"] = y_pred_hosp_max
+    simulations["SimulationCritical_max"] = y_pred_critic_max
+    simulations["SimulationDeaths_max"] = y_pred_deaths_max
+    simulations["SimulationCases_max"] = y_pred_cases_max
+    if folder is not None:
+        simulations.to_csv("{}/out.csv".format(folder))
+
     fig_hospitals = plt.figure(figsize=fig_size)
     plt.plot(dt,simulations["SimulationHospital"], label="Probable hospitalized")
     plt.plot(dt, y_pred_hosp_min,label="Best case hospitalized")
@@ -90,9 +100,10 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     plt.legend()
     if folder is not None:
       plt.savefig("{}/hospitals.png".format(folder))
+      plt.close(fig_hospitals)
+      fig_hospitals.clf()
 
     fig_critical = plt.figure(figsize=fig_size)
-    
     plt.plot(dt,simulations["SimulationCritical"], label="Probable critical")
     plt.plot(dt, y_pred_critic_min,label="Best case critical")
     plt.plot(dt, y_pred_critic_max,label="Worst case critical")
@@ -101,6 +112,8 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     plt.legend()
     if folder is not None:
       plt.savefig("{}/criticals.png".format(folder))
+      plt.close(fig_critical)
+      fig_critical.clf()
 
     fig_deaths= plt.figure(figsize=fig_size)
     plt.plot(dt,simulations["SimulationDeaths"], label="Probable deaths")
@@ -111,6 +124,8 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     plt.legend()
     if folder is not None:
       plt.savefig("{}/deaths.png".format(folder))
+      plt.close(fig_deaths)
+      fig_deaths.clf()
 
 
     fig_cases = plt.figure(figsize=fig_size)
@@ -122,6 +137,10 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     plt.legend()
     if folder is not None:
       plt.savefig("{}/cases.png".format(folder))
+      plt.close(fig_cases)
+      fig_cases.clf()
+
+    return simulations
 
 
 ### updating means
@@ -193,6 +212,13 @@ def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yva
     ax2.legend(loc="lower right")
 
 
-    update_seir(country_lift,init_date,end_date,folder)
+    country_lift = update_seir(country_lift, init_date, end_date, folder)
+
     fig_R = ax1.get_figure()
-    fig_R.savefig("{}/reproduction_rate.png".format(folder))
+    if folder is not None:
+        fig_R.savefig("{}/reproduction_rate.png".format(folder))
+        plt.close(fig_R)
+        fig_R.clf()
+        plt.close("all")
+
+    return country_lift
