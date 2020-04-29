@@ -208,7 +208,7 @@ def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yva
     ax1.legend(loc="lower left")
     ax2 = ax1.twinx()
     ax2.spines['right'].set_position(('axes', 1.0))
-    country_lift.plot(ax=ax2, x="Date",y=measure_to_lift)
+    country_lift.plot(ax=ax2, x="Date",y=list(set(measure_to_lift)))
     ax2.legend(loc="lower right")
 
 
