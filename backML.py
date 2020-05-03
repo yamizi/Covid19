@@ -28,7 +28,7 @@ def predict():
      exists = os.path.exists(path)
      nb_files = len([name for name in os.listdir(path) if os.path.isfile(name)]) if exists else 0
 
-     if nb_files != 6 :
+     if True or nb_files != 6 :
           measures_to_lift = [json_.get("measures")]
           measure_values=json_.get("values")
           dates=json_.get("dates")
@@ -38,8 +38,10 @@ def predict():
 
           end_date = pd.to_datetime("2020-9-11")
           df = simulate(country_df, measures_to_lift,0,end_date,None,columns,yvar, mlp_clf, scaler,measure_values=measure_values,base_folder=base_folder, seed=seed, lift_date_values=measure_dates)
+          df = df.to_dict(orient='records')
 
-     return jsonify({'path': seed})
+     #print("processed")
+     return jsonify({'path': seed, 'df':df})
 
 @app.route('/sims/rate/<path:sim_id>')
 def send_reproduction_plots(sim_id):
