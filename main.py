@@ -6,7 +6,7 @@ from google.cloud import storage
 from sklearn.externals import joblib
 import hashlib
 import re
-
+import logging
 from flask_cors import CORS
 from simulations import simulate
 

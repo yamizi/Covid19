@@ -5,13 +5,11 @@ entrypoint: gunicorn -b 0.0.0.0:$PORT --timeout 100 main:app
 runtime_config:
   python_version: 3
 
-service: covid19
-
 skip_files:
   - ^\..*$
 
 env_variables:
-  GCS_BUCKET: "covid19"
+  GCS_BUCKET: "snt_covid19"
   GCS_MODEL: "mlp.save"
   GCS_SCALER: "scaler.save"
   GCS_METRICS: "metrics.json"
