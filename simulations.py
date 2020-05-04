@@ -19,7 +19,7 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     population = data["population"].min()
     N = population
     n_infected = data['InfectiousCases'].iloc[0]
-    n_exposed = data['ConfirmedCases_y'].iloc[0]
+    n_exposed =  data['ExposedCases'].iloc[0]#data['ConfirmedCases_y'].iloc[0]
     n_hospitalized = data['HospitalizedCases'].iloc[0]
     n_critical = data['CriticalCases'].iloc[0]
     n_recovered = data['RecoveredCases'].iloc[0]
@@ -79,15 +79,20 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     fig_size = (20,5)
 
     #print(l,len(y_pred_cases),y_pred_hosp_max.min(),y_pred_hosp_max.max() )
-    simulations = pd.DataFrame({"Date": dates,"SimulationCases": y_pred_cases,"SimulationHospital":y_pred_hosp,"SimulationCritical":y_pred_critic,"SimulationDeaths":y_pred_deaths})
-    simulations["SimulationHospital_min"] = y_pred_hosp_min
-    simulations["SimulationCritical_min"] = y_pred_critic_min
-    simulations["SimulationDeaths_min"] = y_pred_deaths_min
-    simulations["SimulationCases_min"] = y_pred_cases_min
-    simulations["SimulationHospital_max"] = y_pred_hosp_max
-    simulations["SimulationCritical_max"] = y_pred_critic_max
-    simulations["SimulationDeaths_max"] = y_pred_deaths_max
-    simulations["SimulationCases_max"] = y_pred_cases_max
+    simulations = pd.DataFrame({"Date": dates,"SimulationCases": y_pred_cases.astype(int),"SimulationHospital":y_pred_hosp.astype(int)+y_pred_critic.astype(int),"SimulationCritical":y_pred_critic.astype(int),"SimulationDeaths":y_pred_deaths.astype(int)})
+    simulations["SimulationHospital_min"] = y_pred_hosp_min.astype(int) +y_pred_critic_min.astype(int)
+    simulations["SimulationCritical_min"] = y_pred_critic_min.astype(int)
+    simulations["SimulationDeaths_min"] = y_pred_deaths_min.astype(int)
+    simulations["SimulationCases_min"] = y_pred_cases_min.astype(int)
+    simulations["SimulationHospital_max"] = y_pred_hosp_max.astype(int)+y_pred_critic_max.astype(int)
+    simulations["SimulationCritical_max"] = y_pred_critic_max.astype(int)
+    simulations["SimulationDeaths_max"] = y_pred_deaths_max.astype(int)
+    simulations["SimulationCases_max"] = y_pred_cases_max.astype(int)
+
+    simulations["R_min"] = data['R_min'].iloc[1:].values
+    simulations["R"] = data['R'].iloc[1:].values
+    simulations["R_max"] = data['R_max'].iloc[1:].values
+
     if folder is not None:
         simulations.to_csv("{}/out.csv".format(folder))
 
@@ -200,8 +205,8 @@ def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yva
     y_lift = mlp_clf.predict(X_lift)
 
     country_lift["R"] = np.clip(y_lift,0,10)
-    country_lift["R_min"] = np.clip(y_lift-yvar.mean()/2,0,10)
-    country_lift["R_max"] = np.clip(y_lift+yvar.mean()/2,0,10)
+    country_lift["R_min"] = np.clip(y_lift-yvar.mean(),0,10)
+    country_lift["R_max"] = np.clip(y_lift+yvar.mean(),0,10)
     
     ax1 = country_lift.plot(x="Date",y="R", figsize=(20,5), color="red")
     plt.fill_between(np.arange(len(country_lift["R"])), country_lift["R_min"], country_lift["R_max"],color="pink", alpha=0.5, label="Confidence interval")

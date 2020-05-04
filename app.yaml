@@ -1,0 +1,23 @@
+runtime: python
+env: flex
+entrypoint: gunicorn -b 0.0.0.0:$PORT --timeout 100 main:app
+
+runtime_config:
+  python_version: 3
+
+service: covid19
+
+skip_files:
+  - ^\..*$
+
+env_variables:
+  GCS_BUCKET: "covid19"
+  GCS_MODEL: "mlp.save"
+  GCS_SCALER: "scaler.save"
+  GCS_METRICS: "metrics.json"
+  GCS_FEATURES: "features.csv"
+
+resources:
+  cpu: 1
+  memory_gb: 4
+  disk_size_gb: 10
