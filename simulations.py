@@ -35,7 +35,8 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
       if param in cols:
         params[i] = data[param].mean()
 
-    params["decay_values"] = True
+    "decay_values"
+    params.append(True)
     R_t = data['R'].values
     
     def time_varying_reproduction(t):
