@@ -19,7 +19,7 @@ from scipy.integrate import solve_ivp
 from sklearn.externals import joblib
 from simulations import simulate
 
-plt.style.use('seaborn')
+#plt.style.use('seaborn')
 
 country_name = "Luxembourg"
 SEED = random.randint(0,1000)
@@ -36,6 +36,21 @@ with open('{}/metrics.json'.format(folder)) as fp:
     #{"perf":reports,"std_test":list(ystd.values), "columns":columns}
 
 """## Simulations"""
+
+def corr_matrix():
+    df = merged[merged["CountryName"] == country_name][
+        ['retail/recreation', 'grocery/pharmacy', 'parks', 'transit_stations',
+         'workplace', 'residential']]
+    f = plt.figure(figsize=(19, 15))
+    plt.matshow(df.corr(), fignum=f.number)
+    plt.xticks(range(df.shape[1]), df.columns, fontsize=14, rotation=45)
+    plt.yticks(range(df.shape[1]), df.columns, fontsize=14)
+    cb = plt.colorbar()
+    cb.ax.tick_params(labelsize=14)
+    # plt.title('Correlation Matrix', fontsize=16);
+
+    plt.show()
+
 
 
 if __name__ == '__main__':

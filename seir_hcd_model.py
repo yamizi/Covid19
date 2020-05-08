@@ -98,7 +98,7 @@ columns = merged_columns[columns_start:columns_end]
 #columns = [ 'retail/recreation_15days', 'retail/recreation_10days', 'retail/recreation_5days']
 #columns = columns + [ 'workplace_15days', 'workplace_10days', 'workplace_5days']
 #columns = columns + ['transit_stations_15days', 'transit_stations_10days', 'transit_stations_5days']
-columns = columns + ["density","population","population_p65","population_p14","gdp","area"]
+columns = columns + ["day_of_week","density","population","population_p65","population_p14","gdp","area"]
 columns = columns + ["S1_School closing",	"S7_International travel controls"] #"S3_Cancel public events",
 
 country_names = ["Luxembourg","France","Germany","Spain","United kingdom","Greece","Italy","Switzerland","Latvia","Belgium","Netherlands"]
@@ -132,6 +132,8 @@ for i in range(nb_iters):
     mlp_clf.fit(X_train_scaled,y_train.values)
 
     """
+    
+    # initial grid search 
     parameter_space = {
         'hidden_layer_sizes': [(50,100,50),(50,100,100), (50,500,50)],
         'solver': ['sgd', 'adam'],
