@@ -52,28 +52,6 @@ def _load_model():
     else:
         mlp_clf , scaler , columns , yvar , columns = None, None,None, None,None
 
-@app.route('/fit', methods=['GET'])
-def fit_model():
-    tmp_filename = 'model.tmp'
-
-    model = TextClassifier()
-    model.fit()
-
-    joblib.dump(model, tmp_filename)
-
-    client = storage.Client()
-    bucket = client.bucket(GCS_BUCKET)
-
-    if not bucket.exists():
-        bucket = client.create_bucket(GCS_BUCKET)
-
-    blob = bucket.blob(GCS_BLOB)
-
-    with open(tmp_filename, 'rb') as f:
-        blob.upload_from_file(f)
-
-    return 'Model successfully fitted and dumped to gs://{}'.format(os.path.join(GCS_BUCKET, GCS_BLOB))
-
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -100,7 +78,7 @@ def predict():
 
         end_date = pd.to_datetime("2020-9-11")
         df = simulate(country_df, measures_to_lift, 0, end_date, None, columns, yvar, mlp_clf, scaler,
-                      measure_values=measure_values, base_folder=base_folder, seed=seed, lift_date_values=measure_dates)
+                      measure_values=measure_values, base_folder=None, seed=seed, lift_date_values=measure_dates)
         df = df.to_dict(orient='records')
 
     # print("processed")
