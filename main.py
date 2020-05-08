@@ -32,20 +32,20 @@ def _load_model():
     blob_features = bucket.blob(GCS_FEATURES)
     blob_metrics = bucket.blob(GCS_METRICS)
 
-
     if blob_model.exists():
         f = io.BytesIO()
         blob_model.download_to_file(f)
         mlp_clf = joblib.load(f)
 
+        f = io.BytesIO()
         blob_scaler.download_to_file(f)
         scaler = joblib.load(f)
 
-        blob_features.download_to_file(f)
-        merged = pd.read_csv(f, parse_dates=["Date"])
+        #blob_features.download_to_file(f)
+        merged = pd.read_csv("gs://{}/{}".format(GCS_BUCKET,GCS_FEATURES), parse_dates=["Date"])
+        
+        metrics = json.loads(blob_metrics.download_as_string(client=None))
 
-        blob_metrics.download_to_file(f)
-        metrics = json.load(f)
         yvar = np.power(metrics["std_test"], 0.5)
         columns = metrics["columns"]
 
