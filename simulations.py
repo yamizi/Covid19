@@ -27,7 +27,7 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     #S, E, I, R, H, C, D
     initial_state = [(N - n_infected)/ N, n_exposed/N, n_infected / N, n_recovered/N, n_hospitalized/N, n_critical/N, n_deaths/N]
     
-    #t_hosp=4, t_crit=14, m_a=0.8, c_a=0.1, f_a=0.3
+    #t_hosp=7, t_crit=14, m_a=0.8, c_a=0.1, f_a=0.3
     
     params = [7, 14, 0.8, 0.3, 0.3]
     params_name = ("t_hosp", "t_crit", "m", "c", "f")
@@ -35,6 +35,7 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
       if param in cols:
         params[i] = data[param].mean()
 
+    params["decay_values"] = True
     R_t = data['R'].values
     
     def time_varying_reproduction(t):
@@ -182,9 +183,11 @@ def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yva
     country_lift = df.copy()
     current_date = init_date
 
-    folder = "{}/{}".format(base_folder,"_".join(measure_to_lift).replace("/","")) if seed=="" else "./plots/simulations/{}".format(seed)
-    os.makedirs(folder, exist_ok=True)
-    #print(folder)
+    if base_folder is None:
+        folder = None
+    else:
+        folder = "{}/{}".format(base_folder,"_".join(measure_to_lift).replace("/","")) if seed=="" else "./plots/simulations/{}".format(seed)
+        os.makedirs(folder, exist_ok=True)
 
     while current_date < end_date:
       current_date = current_date + timedelta(days=1)
@@ -205,8 +208,8 @@ def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yva
     y_lift = mlp_clf.predict(X_lift)
 
     country_lift["R"] = np.clip(y_lift,0,10)
-    country_lift["R_min"] = np.clip(y_lift-yvar.mean(),0,10)
-    country_lift["R_max"] = np.clip(y_lift+yvar.mean(),0,10)
+    country_lift["R_min"] = np.clip(y_lift-yvar.mean()/2,0,10)
+    country_lift["R_max"] = np.clip(y_lift+yvar.mean()/2,0,10)
     
     ax1 = country_lift.plot(x="Date",y="R", figsize=(20,5), color="red")
     plt.fill_between(np.arange(len(country_lift["R"])), country_lift["R_min"], country_lift["R_max"],color="pink", alpha=0.5, label="Confidence interval")

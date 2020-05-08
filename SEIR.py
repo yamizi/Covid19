@@ -22,6 +22,8 @@ These constants are likely to be age specific (hence the subscript a):
 *Averages taken from https://www.kaggle.com/covid-19-contributions
 """
 
+import numpy as np
+
 # Susceptible equation
 def dS_dt(S, I, R_t, t_inf):
     return -(R_t / t_inf) * I * S
@@ -57,7 +59,7 @@ def dD_dt(C, t_crit, f_a):
     return f_a * C / t_crit
 
 
-def SEIR_HCD_model(t, y, R_t, t_inc=2.9, t_inf=5.2, t_hosp=4, t_crit=14, m_a=0.8, c_a=0.1, f_a=0.3):
+def SEIR_HCD_model(t, y, R_t, t_inc=2.9, t_inf=5.2, t_hosp0=4, t_crit0=14, m_a0=0.8, c_a0=0.1, f_a0=0.3, decay_values=False):
     """
 
     :param t: Time step for solve_ivp
@@ -65,11 +67,12 @@ def SEIR_HCD_model(t, y, R_t, t_inc=2.9, t_inf=5.2, t_hosp=4, t_crit=14, m_a=0.8
     :param R_t: Reproduction number
     :param t_inc: Average incubation period. Default 5.2 days
     :param t_inf: Average infectious period. Default 2.9 days
-    :param t_hosp: Average time a patient is in hospital before either recovering or becoming critical. Default 4 days
-    :param t_crit: Average time a patient is in a critical state (either recover or die). Default 14 days
-    :param m_a: Fraction of infections that are asymptomatic or mild. Default 0.8
-    :param c_a: Fraction of severe cases that turn critical. Default 0.1
-    :param f_a: Fraction of critical cases that are fatal. Default 0.3
+    :param t_hosp0: Average time a patient is in hospital before either recovering or becoming critical. Default 4 days
+    :param t_crit0: Average time a patient is in a critical state (either recover or die). Default 14 days
+    :param m_a0: Fraction of infections that are asymptomatic or mild. Default 0.8
+    :param c_a0: Fraction of severe cases that turn critical. Default 0.1
+    :param f_a0: Fraction of critical cases that are fatal. Default 0.3
+    :param end_values: end values of decay of t_hosp, t_crit, m_a, c_a, f_a. Default None
     :return:
     """
     if callable(R_t):
@@ -78,6 +81,24 @@ def SEIR_HCD_model(t, y, R_t, t_inc=2.9, t_inf=5.2, t_hosp=4, t_crit=14, m_a=0.8
         reprod = R_t
         
     S, E, I, R, H, C, D = y
+
+    if decay_values is False:
+        t_hosp = t_hosp0
+        t_crit = t_crit0
+        m_a = m_a0
+        c_a = c_a0
+        f_a = f_a0
+
+    else:
+        lambda_ = 1
+        decay = np.exp(-lambda_*t)
+
+        t_hosp = decay*t_hosp0 + (1-decay)*4
+        t_crit = decay*t_crit0 + (1-decay)*14
+        m_a = decay*m_a0 + (1-decay) *0.8
+        c_a = decay*c_a0 + (1-decay) *0.1
+        f_a = decay*f_a0 + (1-decay) *0.3
+
     
     S_out = dS_dt(S, I, reprod, t_inf)
     E_out = dE_dt(S, E, I, reprod, t_inf, t_inc)
