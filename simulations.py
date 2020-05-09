@@ -98,54 +98,53 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
     if folder is not None:
         simulations.to_csv("{}/out.csv".format(folder))
 
-    fig_hospitals = plt.figure(figsize=fig_size)
-    plt.plot(dt,simulations["SimulationHospital"]+simulations["SimulationCritical"], label="Probable hospitalized")
-    plt.plot(dt, y_pred_hosp_min+y_pred_critic_min,label="Best case hospitalized")
-    plt.plot(dt, y_pred_hosp_max+y_pred_critic_max,label="Worst case hospitalized")
-    plt.xticks(dt,ticks, rotation=90)
-    plt.tight_layout()
-    plt.legend()
-    if folder is not None:
-      plt.savefig("{}/hospitals.png".format(folder))
-      plt.close(fig_hospitals)
-      fig_hospitals.clf()
+        fig_hospitals = plt.figure(figsize=fig_size)
+        plt.plot(dt,simulations["SimulationHospital"]+simulations["SimulationCritical"], label="Probable hospitalized")
+        plt.plot(dt, y_pred_hosp_min+y_pred_critic_min,label="Best case hospitalized")
+        plt.plot(dt, y_pred_hosp_max+y_pred_critic_max,label="Worst case hospitalized")
+        plt.xticks(dt,ticks, rotation=90)
+        plt.tight_layout()
+        plt.legend()
 
-    fig_critical = plt.figure(figsize=fig_size)
-    plt.plot(dt,simulations["SimulationCritical"], label="Probable critical")
-    plt.plot(dt, y_pred_critic_min,label="Best case critical")
-    plt.plot(dt, y_pred_critic_max,label="Worst case critical")
-    plt.xticks(dt,ticks, rotation=90)
-    plt.tight_layout()
-    plt.legend()
-    if folder is not None:
-      plt.savefig("{}/criticals.png".format(folder))
-      plt.close(fig_critical)
-      fig_critical.clf()
+        plt.savefig("{}/hospitals.png".format(folder))
+        plt.close(fig_hospitals)
+        fig_hospitals.clf()
 
-    fig_deaths= plt.figure(figsize=fig_size)
-    plt.plot(dt,simulations["SimulationDeaths"], label="Probable deaths")
-    plt.plot(dt, y_pred_deaths_min,label="Best case deaths")
-    plt.plot(dt, y_pred_deaths_max,label="Worst case deaths")
-    plt.xticks(dt,ticks, rotation=90)
-    plt.tight_layout()
-    plt.legend()
-    if folder is not None:
-      plt.savefig("{}/deaths.png".format(folder))
-      plt.close(fig_deaths)
-      fig_deaths.clf()
+        fig_critical = plt.figure(figsize=fig_size)
+        plt.plot(dt,simulations["SimulationCritical"], label="Probable critical")
+        plt.plot(dt, y_pred_critic_min,label="Best case critical")
+        plt.plot(dt, y_pred_critic_max,label="Worst case critical")
+        plt.xticks(dt,ticks, rotation=90)
+        plt.tight_layout()
+        plt.legend()
 
+        plt.savefig("{}/criticals.png".format(folder))
+        plt.close(fig_critical)
+        fig_critical.clf()
 
-    fig_cases = plt.figure(figsize=fig_size)
-    plt.plot(dt,y_pred_cases, label="Probable cases")
-    plt.plot(dt, y_pred_cases_min,label="Best case cases")
-    plt.plot(dt, y_pred_cases_max,label="Worst case cases")
-    plt.xticks(dt,ticks, rotation=90)
-    plt.tight_layout()
-    plt.legend()
-    if folder is not None:
-      plt.savefig("{}/cases.png".format(folder))
-      plt.close(fig_cases)
-      fig_cases.clf()
+        fig_deaths= plt.figure(figsize=fig_size)
+        plt.plot(dt,simulations["SimulationDeaths"], label="Probable deaths")
+        plt.plot(dt, y_pred_deaths_min,label="Best case deaths")
+        plt.plot(dt, y_pred_deaths_max,label="Worst case deaths")
+        plt.xticks(dt,ticks, rotation=90)
+        plt.tight_layout()
+        plt.legend()
+
+        plt.savefig("{}/deaths.png".format(folder))
+        plt.close(fig_deaths)
+        fig_deaths.clf()
+
+        fig_cases = plt.figure(figsize=fig_size)
+        plt.plot(dt,y_pred_cases, label="Probable cases")
+        plt.plot(dt, y_pred_cases_min,label="Best case cases")
+        plt.plot(dt, y_pred_cases_max,label="Worst case cases")
+        plt.xticks(dt,ticks, rotation=90)
+        plt.tight_layout()
+        plt.legend()
+
+        plt.savefig("{}/cases.png".format(folder))
+        plt.close(fig_cases)
+        fig_cases.clf()
 
     return simulations
 
@@ -212,22 +211,22 @@ def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yva
     country_lift["R_min"] = np.clip(y_lift-yvar.mean()/2,0,10)
     country_lift["R_max"] = np.clip(y_lift+yvar.mean()/2,0,10)
     
-    ax1 = country_lift.plot(x="Date",y="R", figsize=(20,5), color="red")
-    plt.fill_between(np.arange(len(country_lift["R"])), country_lift["R_min"], country_lift["R_max"],color="pink", alpha=0.5, label="Confidence interval")
-    ax1.legend(loc="lower left")
-    ax2 = ax1.twinx()
-    ax2.spines['right'].set_position(('axes', 1.0))
-    country_lift.plot(ax=ax2, x="Date",y=list(set(measure_to_lift)))
-    ax2.legend(loc="lower right")
+    if folder is not None:
+      ax1 = country_lift.plot(x="Date",y="R", figsize=(20,5), color="red")
+      plt.fill_between(np.arange(len(country_lift["R"])), country_lift["R_min"], country_lift["R_max"],color="pink", alpha=0.5, label="Confidence interval")
+      ax1.legend(loc="lower left")
+      ax2 = ax1.twinx()
+      ax2.spines['right'].set_position(('axes', 1.0))
+      country_lift.plot(ax=ax2, x="Date",y=list(set(measure_to_lift)))
+      ax2.legend(loc="lower right")
+      
+      fig_R = ax1.get_figure()
 
+      fig_R.savefig("{}/reproduction_rate.png".format(folder))
+      plt.close(fig_R)
+      fig_R.clf()
+      plt.close("all")
 
     country_lift = update_seir(country_lift, init_date, end_date, folder)
-
-    fig_R = ax1.get_figure()
-    if folder is not None:
-        fig_R.savefig("{}/reproduction_rate.png".format(folder))
-        plt.close(fig_R)
-        fig_R.clf()
-        plt.close("all")
 
     return country_lift
