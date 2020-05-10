@@ -125,18 +125,18 @@ def prepare_dataframe_for_seaborn(data):
 
 def draw_plots(raw_data):
     data = prepare_dataframe_for_seaborn(raw_data)
-    
+
     for country in data['Country'].unique():
         for population in data['Population'].unique():
             data_to_draw = data.loc[(data['Country'] == country) & (data['Population'] == population)]
             name = 'scenarios_{}_{}'.format(country, population)
 
-            utils.lineplot(data_to_draw, name, 'Date', 'Value', population, 'Scenario', show_error=True)
+            utils.lineplot(data_to_draw, name, 'Date', 'Value', 'Number of habitants', hue='Scenario', show_error=True)
 
 if __name__ == '__main__':
     t_start = time.perf_counter()
 
-    countries = ['Belgium', 'France', 'Germany', 'Luxembourg']
+    countries = ['Belgium', 'France', 'Germany', 'Greece', 'Italy', 'Latvia', 'Luxembourg', 'Netherlands', 'Spain', 'Switzerland', 'Brazil', 'Cameroon', 'Canada', 'Japan', 'United Kingdom']
     scenarios = ['hard exit', 'no exit', 'progressive exit', 'cyclic exit']
 
     simulation = run_simulation(countries, scenarios)

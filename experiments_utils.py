@@ -18,23 +18,23 @@ def google_values():
 GOOGLE_VALUES = google_values()
 
 def color_palette(data, hue):
-    n_colors = len(data[hue].unique())
+    n_colors = 1 if hue == None else len(data[hue].unique())
     return sns.color_palette("cubehelix", n_colors=n_colors)
 
 
-def lineplot(data, name, x, y, y_label, hue, x_label='', y_lim=None, fig_size=(6,4), legend_pos='best', style=None, show_error=False):
+def lineplot(data, name, x, y, y_label, x_label='', hue=None, y_lim=None, fig_size=(6,4), legend_pos='best', style=None, show_error=False, **kwargs):
     fig = plt.figure(figsize=fig_size)
     sns.set(style="white", color_codes=True, font_scale=1.5)
 
     palette = color_palette(data, hue)
 
-    g = sns.lineplot(x=x, y=y, hue=hue, data=data, palette=palette, legend="full", style=style)
+    g = sns.lineplot(x=x, y=y, hue=hue, data=data, palette=palette, legend="full", style=style, **kwargs)
 
     fig.tight_layout()
 
     if not legend_pos:
         g.legend_.remove()
-    else:
+    elif hue:
         handles, labels = g.get_legend_handles_labels()
         plt.legend(loc='best', prop={'size': 15}, handles=handles[1:], labels=labels[1:])
 
