@@ -210,22 +210,22 @@ def simulate(df,measures_to_lift,measure_value,end_date, lift_date, columns, yva
     country_lift["R_min"] = np.clip(y_lift-yvar.mean()/2,0,10)
     country_lift["R_max"] = np.clip(y_lift+yvar.mean()/2,0,10)
     
-    ax1 = country_lift.plot(x="Date",y="R", figsize=(20,5), color="red")
-    plt.fill_between(np.arange(len(country_lift["R"])), country_lift["R_min"], country_lift["R_max"],color="pink", alpha=0.5, label="Confidence interval")
-    ax1.legend(loc="lower left")
-    ax2 = ax1.twinx()
-    ax2.spines['right'].set_position(('axes', 1.0))
-    country_lift.plot(ax=ax2, x="Date",y=list(set(measure_to_lift)))
-    ax2.legend(loc="lower right")
+    if folder is not None:
+      ax1 = country_lift.plot(x="Date",y="R", figsize=(20,5), color="red")
+      plt.fill_between(np.arange(len(country_lift["R"])), country_lift["R_min"], country_lift["R_max"],color="pink", alpha=0.5, label="Confidence interval")
+      ax1.legend(loc="lower left")
+      ax2 = ax1.twinx()
+      ax2.spines['right'].set_position(('axes', 1.0))
+      country_lift.plot(ax=ax2, x="Date",y=list(set(measure_to_lift)))
+      ax2.legend(loc="lower right")
 
+      fig_R = ax1.get_figure()
+
+      fig_R.savefig("{}/reproduction_rate.png".format(folder))
+      plt.close(fig_R)
+      fig_R.clf()
+      plt.close("all")
 
     country_lift = update_seir(country_lift, init_date, end_date, folder)
-
-    fig_R = ax1.get_figure()
-    if folder is not None:
-        fig_R.savefig("{}/reproduction_rate.png".format(folder))
-        plt.close(fig_R)
-        fig_R.clf()
-        plt.close("all")
 
     return country_lift

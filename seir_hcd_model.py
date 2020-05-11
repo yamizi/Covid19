@@ -43,7 +43,7 @@ There are certain variables that we can play with to fit the model to real data:
 * Reproduction number, `R_0` or `R_t`
 """
 
-current_dataset_date = date(2020,4,23).strftime("%Y_%m_%d")
+current_dataset_date = date(2020,5,10).strftime("%Y_%m_%d")
 dataset= pd.read_csv("./datasets/{}_google.csv".format(current_dataset_date), parse_dates=['Date'])
 dataset = dataset.drop(["Unnamed: 0"],axis=1)
 
