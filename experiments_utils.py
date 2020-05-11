@@ -9,13 +9,13 @@ FIGURE_FOLDER = 'figures/'
 EXTENSION = '.png'
 
 
-def google_values():
-    raw_data = pd.read_csv('datasets/2020_04_23_google.csv')
+def features_values():
+    raw_data = pd.read_csv('models/seirhcd/2020_05_10/features.csv')
     raw_data['Date'] = pd.to_datetime(raw_data['Date'])
 
     return raw_data
 
-GOOGLE_VALUES = google_values()
+FEATURES_VALUES = features_values()
 
 def color_palette(data, hue):
     n_colors = 1 if hue == None else len(data[hue].unique())

@@ -6,6 +6,17 @@ import time
 
 MEASURES = ['grocery/pharmacy', 'workplace', 'S1_School closing', 'parks', 'transit_stations', 'retail/recreation', 'S7_International travel controls']
 
+
+def get_no_lockdown(country):
+    return list(map(lambda x: max(x, 0), get_initial_lockdown(country)))
+
+
+def get_initial_lockdown(country):
+    initial = utils.FEATURES_VALUES.loc[(utils.FEATURES_VALUES['CountryName'] == country)]
+    initial = initial.loc[initial['Date'].idxmax()]
+    return [initial['grocery/pharmacy_15days'], initial['workplace_15days'], initial['S1_School closing'], initial['parks_15days'], initial['transit_stations_15days'], initial['retail/recreation_15days'], initial['S7_International travel controls']]
+
+
 def create_measures(n):
     measures = []
     for i in range(n):
@@ -25,18 +36,18 @@ def create_dates(raw_dates):
 
 def create_hard_exit(country):
     dates = ['2020-05-11']
-    measures = [0] * len(MEASURES)
+    measures = get_no_lockdown(country)
 
     return (dates, measures)
 
 
 def create_soft_exit(country):
-    dates = ['2020-05-11', '2020-05-25', '2020-06-08', '2020-06-22', '2020-07-06', '2020-07-20', '2020-08-03']
-    
+    dates = ['2020-05-11', '2020-05-25', '2020-06-08', '2020-06-22', '2020-07-06', '2020-07-20', '2020-08-03', '2020-08-17']
+
     measures = []
     initial = get_initial_lockdown(country)
     for i in range(len(dates)):
-        measures.extend([min(0, e + abs(e * 0.15 * (i + 1))) for e in initial])
+        measures.extend([max(e, min(0, e + abs(e * 0.13 * (i + 1)))) for e in initial])
 
     return (dates, measures)
 
@@ -52,7 +63,7 @@ def create_cyclic_exit(country):
     initial = get_initial_lockdown(country)
     for i in range(len(dates)):
         if i % 2 == 0:
-            measures.extend([0] * len(MEASURES))
+            measures.extend(get_no_lockdown(country))
         else:
             measures.extend(initial)
 
@@ -79,12 +90,14 @@ def get_scenario(country, scenario_name):
     
     return scenario
 
-def get_initial_lockdown(country):
-    initial = utils.GOOGLE_VALUES.loc[(utils.GOOGLE_VALUES['CountryName'] == country) & (utils.GOOGLE_VALUES['Date'] == '2020-04-01')].iloc[0]
-    return [initial['grocery/pharmacy_15days'], initial['workplace_15days'], -100, initial['parks_15days'], initial['transit_stations_15days'], initial['retail/recreation_15days'], -100]
 
 def build_parameters(country, scenario):
     parameters = get_scenario(country, scenario)
+
+    print('Run for {} with {}\n'.format(country, scenario))
+    print(parameters)
+    print('\n')
+
     parameters['measure_dates'] = [pd.to_datetime(d) for d in parameters['measure_dates']]
     parameters['country_df'] = merged[merged["CountryName"]==country]
 
@@ -131,12 +144,14 @@ def draw_plots(raw_data):
             data_to_draw = data.loc[(data['Country'] == country) & (data['Population'] == population)]
             name = 'scenarios_{}_{}'.format(country, population)
 
-            utils.lineplot(data_to_draw, name, 'Date', 'Value', 'Number of habitants', hue='Scenario', show_error=True)
+            legend_pos = None if not country == 'Italy' else 'best'
+            utils.lineplot(data_to_draw, name, 'Date', 'Value', 'Number of habitants', hue='Scenario', show_error=False, legend_pos=legend_pos)
 
 if __name__ == '__main__':
     t_start = time.perf_counter()
 
-    countries = ['Belgium', 'France', 'Germany', 'Greece', 'Italy', 'Latvia', 'Luxembourg', 'Netherlands', 'Spain', 'Switzerland', 'Brazil', 'Cameroon', 'Canada', 'Japan', 'United Kingdom']
+    #countries = ['Belgium', 'France', 'Germany', 'Greece', 'Italy', 'Latvia', 'Luxembourg', 'Netherlands', 'Spain', 'Switzerland', 'Brazil', 'Cameroon', 'Canada', 'Japan', 'United Kingdom']
+    countries = ['Japan', 'Luxembourg', 'Italy']
     scenarios = ['hard exit', 'no exit', 'progressive exit', 'cyclic exit']
 
     simulation = run_simulation(countries, scenarios)
