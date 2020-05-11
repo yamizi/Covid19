@@ -52,10 +52,13 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
 
 
     R_t = data['R_min'].values
+    args = (time_varying_reproduction, 5.6, 2.9, *params)
+
     sol = solve_ivp(SEIR_HCD_model, [0, max_days], initial_state, args=args, t_eval=np.arange(0, max_days))
     sus_min, exp_min, inf_min, rec_min, hosp_min, crit_min, deaths_min = sol.y
 
     R_t = data['R_max'].values
+    args = (time_varying_reproduction, 5.6, 2.9, *params)
     sol = solve_ivp(SEIR_HCD_model, [0, max_days], initial_state, args=args, t_eval=np.arange(0, max_days))
     sus_max, exp_max, inf_max, rec_max, hosp_max, crit_max, deaths_max = sol.y
     
@@ -82,15 +85,20 @@ def update_seir(df, active_date,e_date, folder=None,l_date=None):
 
     #print(l,len(y_pred_cases),y_pred_hosp_max.min(),y_pred_hosp_max.max() )
     simulations = pd.DataFrame({"Date": dates,"SimulationCases": y_pred_cases.astype(int),"SimulationHospital":y_pred_hosp.astype(int)+y_pred_critic.astype(int),"SimulationCritical":y_pred_critic.astype(int),"SimulationDeaths":y_pred_deaths.astype(int)})
-    simulations["SimulationHospital_min"] = y_pred_hosp_min.astype(int) +y_pred_critic_min.astype(int)
-    simulations["SimulationCritical_min"] = y_pred_critic_min.astype(int)
-    simulations["SimulationDeaths_min"] = y_pred_deaths_min.astype(int)
-    simulations["SimulationCases_min"] = y_pred_cases_min.astype(int)
-    simulations["SimulationHospital_max"] = y_pred_hosp_max.astype(int)+y_pred_critic_max.astype(int)
-    simulations["SimulationCritical_max"] = y_pred_critic_max.astype(int)
-    simulations["SimulationDeaths_max"] = y_pred_deaths_max.astype(int)
-    simulations["SimulationCases_max"] = y_pred_cases_max.astype(int)
+    simulations_min = pd.DataFrame({"Date": dates[:len(y_pred_hosp_min)], "SimulationCases_min": y_pred_cases_min.astype(int),
+                                "SimulationHospital_min": y_pred_hosp_min.astype(int) + y_pred_critic_min.astype(int),
+                                "SimulationCritical_min": y_pred_critic_min.astype(int),
+                                "SimulationDeaths_min": y_pred_deaths_min.astype(int)})
 
+    simulations_max = pd.DataFrame(
+        {"Date": dates[:len(y_pred_hosp_max)], "SimulationCases_max": y_pred_cases_max.astype(int),
+         "SimulationHospital_max": y_pred_hosp_max.astype(int) + y_pred_critic_max.astype(int),
+         "SimulationCritical_max": y_pred_critic_max.astype(int),
+         "SimulationDeaths_max": y_pred_deaths_max.astype(int)})
+
+    simulations = pd.merge(simulations,simulations_min, how="left", on="Date")
+    simulations = pd.merge(simulations, simulations_max, how="left", on="Date")
+    simulations = simulations.fillna(method='ffill')
     simulations["R_min"] = data['R_min'].iloc[1:].values
     simulations["R"] = data['R'].iloc[1:].values
     simulations["R_max"] = data['R_max'].iloc[1:].values
