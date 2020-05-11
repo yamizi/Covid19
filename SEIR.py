@@ -90,7 +90,7 @@ def SEIR_HCD_model(t, y, R_t, t_inc=2.9, t_inf=5.2, t_hosp0=4, t_crit0=14, m_a0=
         f_a = f_a0
 
     else:
-        lambda_ = 1
+        lambda_ = 1e-1
         decay = np.exp(-lambda_*t)
 
         t_hosp = decay*t_hosp0 + (1-decay)*4

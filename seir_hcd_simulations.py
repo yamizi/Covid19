@@ -24,7 +24,7 @@ from simulations import simulate
 country_name = "Luxembourg"
 SEED = random.randint(0,1000)
 current_dataset_date = date(2020,4,23).strftime("%Y_%m_%d")
-
+current_dataset_date = "fixed"
 folder = "./models/seirhcd/{}".format(current_dataset_date)
 scaler = joblib.load("{}/scaler.save".format(folder)) 
 mlp_clf = joblib.load("{}/mlp.save".format(folder)) 
@@ -55,12 +55,27 @@ def corr_matrix():
 
 if __name__ == '__main__':
 
-    country_df = merged[merged["CountryName"]==country_name]
-    lift_date = pd.to_datetime("2020-05-11")
+
+    lift_date = pd.to_datetime("2020-05-01")
     end_date = pd.to_datetime("2020-9-11")
     simulation_id = SEED
-    folder = "./plots/simulations/{}/{}/run{}/lift_{}".format(country_name,current_dataset_date, str(simulation_id),str(lift_date)[0:10])
+    folder = "./plots/simulations/{}/{}/run{}/lift_{}".format(country_name, current_dataset_date, str(simulation_id),
+                                                              str(lift_date)[0:10])
+    measures_to_lift = [["transit_stations"]]
+    measure_values = [-50]
 
+    end_date = pd.to_datetime("2020-04-30")
+
+    countries = ["Belgium","France","Germany","Greece","Italy","Latvia","Luxembourg","Netherlands","Spain","Switzerland","Brazil","Cameroon","Canada","Japan","United Kingdom"]
+
+    for country_name in countries:
+        country_df = merged[merged["CountryName"]==country_name]
+        res = simulate(country_df, measures_to_lift, 0, end_date, lift_date, columns, yvar/2, mlp_clf, scaler,
+                 measure_values=measure_values, base_folder=None)
+
+        frame = res.tail(2).head(1).to_dict(orient="records")[0]
+
+        print("{} {} [{}-{}] {} [{}-{}]".format(frame["Date"],frame["SimulationCases"],frame["SimulationCases_min"],frame["SimulationCases_max"],frame["SimulationDeaths"],frame["SimulationDeaths_min"],frame["SimulationDeaths_max"]))
 
     """
     measures_to_lift = [["transit_stations","workplace"], ["transit_stations","S1_School closing"],["transit_stations","workplace","retail/recreation"],["transit_stations","retail/recreation","S7_International travel controls"]]
@@ -69,7 +84,7 @@ if __name__ == '__main__':
 
     simulate(country_df, measures_to_lift,-50,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,base_folder=folder)
     simulate(country_df, measures_to_lift,-90,end_date,lift_date,metrics["columns"],yvar, mlp_clf, scaler,base_folder=folder)
-    """
+    
 
     measures_to_lift = [["transit_stations","workplace","S1_School closing"]]
     measure_values=[-50,-32,-80]
@@ -77,3 +92,5 @@ if __name__ == '__main__':
     end_date = pd.to_datetime("2020-9-11")
     simulate(country_df, measures_to_lift,0,end_date,lift_date,columns,yvar, mlp_clf, scaler,measure_values=measure_values,base_folder=folder,seed="LuxScenario")
     #plt.show()
+    
+    """

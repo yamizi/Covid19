@@ -51,8 +51,8 @@ dataset.tail(1)
 
 """## ML to predict Reproduction Rate"""
 
-#current_dataset_date = date(2020,4,15).strftime("%Y_%m_%d")
-all_countries= pd.read_csv("./datasets/{}_seirhcd.csv".format(current_dataset_date), parse_dates=['Date'])
+current_dataset_date = "fixed"
+all_countries= pd.read_csv("./datasets/seirhcd.csv", parse_dates=['Date'])
 
 oxford_raw = pd.read_excel("./datasets/OxCGRT_Download_latest_data.xlsx", sep=';')
 oxford_raw['Date'] = pd.to_datetime(oxford_raw['Date'], format='%Y%m%d')
@@ -104,7 +104,7 @@ columns = columns + ["S1_School closing",	"S7_International travel controls"] #"
 country_names = ["Luxembourg","France","Germany","Spain","United kingdom","Greece","Italy","Switzerland","Latvia","Belgium","Netherlands"]
 country = merged[merged["CountryName"].isin(country_names)]
 non_country = merged[~merged["CountryName"].isin(country_names)]
-non_country = merged
+#non_country = merged
 
 all_countries = merged["CountryName"].unique()
 print(all_countries)
@@ -176,6 +176,8 @@ params = srch.get_params()
 reg.set_params(alpha_init=params["estimator__alpha_init"], lambda_init=params["estimator__lambda_init"]) 
 reg.fit(X_train, y_train)
 ymean, ystd = reg.predict(X_test, return_std=True)
+
+exit()
 
 folder = "./models/seirhcd/{}".format(current_dataset_date)
 os.makedirs(folder, exist_ok=True)
