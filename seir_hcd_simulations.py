@@ -17,7 +17,7 @@ from datetime import timedelta , datetime, date
 
 from scipy.integrate import solve_ivp
 from sklearn.externals import joblib
-from simulations import simulate
+from simulations import simulate, simulate_constantRt
 
 #plt.style.use('seaborn')
 
@@ -67,16 +67,18 @@ if __name__ == '__main__':
 
     end_date = pd.to_datetime("2020-04-30")
 
+    eval_date = pd.to_datetime("2020-04-29")
+    ref_date = pd.to_datetime("2020-02-15")
     countries = ["Belgium","France","Germany","Greece","Italy","Latvia","Luxembourg","Netherlands","Spain","Switzerland","Brazil","Cameroon","Canada","Japan","United Kingdom"]
 
     for country_name in countries:
         country_df = merged[merged["CountryName"]==country_name]
-        res = simulate(country_df, measures_to_lift, 0, end_date, lift_date, columns, yvar/2, mlp_clf, scaler,
-                 measure_values=measure_values, base_folder=None)
-
-        frame = res.tail(2).head(1).to_dict(orient="records")[0]
-
-        print("{} {} [{}-{}] {} [{}-{}]".format(frame["Date"],frame["SimulationCases"],frame["SimulationCases_min"],frame["SimulationCases_max"],frame["SimulationDeaths"],frame["SimulationDeaths_min"],frame["SimulationDeaths_max"]))
+        country_sub = country_df[country_df["Date"]<=ref_date]
+        if country_sub.shape[0] ==0:
+            country_sub = country_df
+        res = simulate_constantRt(country_sub, end_date)
+        frame = res[res["Date"]==eval_date].to_dict(orient="records")[0]
+        print("{} {} {}".format(country_name, frame["Date"],frame["SimulationDeaths"]))
 
     """
     measures_to_lift = [["transit_stations","workplace"], ["transit_stations","S1_School closing"],["transit_stations","workplace","retail/recreation"],["transit_stations","retail/recreation","S7_International travel controls"]]
