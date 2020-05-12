@@ -8,8 +8,15 @@ runtime_config:
 skip_files:
   - ^\..*$
 
+# This sample incurs costs to run on the App Engine flexible environment.
+# The settings below are to reduce costs during testing and are not appropriate
+# for production use. For more information, see:
+# https://cloud.google.com/appengine/docs/flexible/nodejs/configuring-your-app-with-app-yaml
+manual_scaling:
+  instances: 1
+
 env_variables:
-  GCS_BUCKET: "snt_covid19"
+  GCS_BUCKET: "snt_covid19/v2"
   GCS_MODEL: "mlp.save"
   GCS_SCALER: "scaler.save"
   GCS_METRICS: "metrics.json"
@@ -17,5 +24,5 @@ env_variables:
 
 resources:
   cpu: 1
-  memory_gb: 4
+  memory_gb: 2
   disk_size_gb: 10
