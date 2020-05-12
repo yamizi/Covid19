@@ -24,7 +24,7 @@ from simulations import simulate, simulate_constantRt
 country_name = "Luxembourg"
 SEED = random.randint(0,1000)
 current_dataset_date = date(2020,5,10).strftime("%Y_%m_%d")
-current_dataset_date = "fixed"
+current_dataset_date = "v2"
 
 folder = "./models/seirhcd/{}".format(current_dataset_date)
 scaler = joblib.load("{}/scaler.save".format(folder)) 

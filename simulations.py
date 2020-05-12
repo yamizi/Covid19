@@ -172,7 +172,7 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
 ### updating means
 
 def update_mean(df):
-    features = ["grocery/pharmacy", "parks", "residential", "retail/recreation", "transit_stations", "workplace"]
+    features = ["grocery/pharmacy", "parks", "residential", "retail/recreation", "transit_stations", "workplace","school", "international_transport"]
     df[features] = df[features].rolling(3, 2).mean()
     for f in features:
         days_15 = df[f].rolling(15, min_periods=14).mean().fillna(method="bfill")
@@ -187,9 +187,8 @@ def update_mean(df):
         days_30 = df[f].rolling(30, min_periods=29).mean().fillna(method="bfill")
         df["{}_30days".format(f)] = days_30
 
-    df[["S7_International travel controls"]] = df[["S7_International travel controls"]].rolling(15, 14).mean()
-    df[["S1_School closing", "S3_Cancel public events"]] = df[["S1_School closing", "S3_Cancel public events"]].rolling(
-        7, 6).mean()
+    #df[["S7_International travel controls"]] = df[["S7_International travel controls"]].rolling(15, 14).mean()
+    #df[["S1_School closing", "S3_Cancel public events"]] = df[["S1_School closing", "S3_Cancel public events"]].rolling(7, 6).mean()
 
     return df
 
@@ -217,12 +216,18 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
 
             obj = {"Date": current_date}
 
-            for i, measure in enumerate(measure_to_lift):
+            measures_translations = {"S7_International travel controls":"international_transport","S1_School closing":"school"}
+            # df[["S1_School closing", "S3_Cancel public events"
+
+            measure_labels = [measures_translations.get(e,e) for e in measure_to_lift]
+
+            for i, measure in enumerate(measure_labels):
 
                 lift = current_date >= lift_date_values[i] if lift_date_values is not None and len(
                     lift_date_values) > i else current_date >= lift_date
                 if lift:
                     obj[measure] = measure_values[i] if measure_values is not None else measure_value
+
 
             country_lift = country_lift.append(obj, ignore_index=True)
 
