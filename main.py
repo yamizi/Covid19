@@ -66,7 +66,7 @@ def predict():
     path = "{}/{}".format(base_folder, seed)
 
     blob = bucket.blob(path)
-    exists = blob.exists(path)
+    exists = blob.exists()
 
     if True or not exists:
         measures_to_lift = [json_.get("measures")]
