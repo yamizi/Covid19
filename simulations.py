@@ -40,8 +40,9 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     n_infected = ref_data['ConfirmedCases_y'].iloc[0]-inf_data['ConfirmedCases_y'].iloc[0] #data['InfectiousCases'].iloc[0]
     n_exposed = data['ConfirmedCases_y'].iloc[0] - ref_data['ConfirmedCases_y'].iloc[0] #data['ExposedCases'].iloc[0]
     n_hospitalized = (1-params[2]) * n_exposed #data['HospitalizedCases'].iloc[0]*1.5
+    n_exposed = params[2] * n_exposed 
     n_critical = (params[3]) * n_hospitalized #data['CriticalCases'].iloc[0]*1.5
-    n_recovered = data['RecoveredCases'].iloc[0]
+    n_recovered =  inf_data['ConfirmedCases_y'].iloc[0] -inf_data['ConfirmedDeaths'].iloc[0]  #data['RecoveredCases'].iloc[0]
     n_deaths = data['ConfirmedDeaths'].iloc[0]
     # S, E, I, R, H, C, D
     initial_state = [(N - n_infected) / N, n_exposed / N, n_infected / N, n_recovered / N, n_hospitalized / N,
