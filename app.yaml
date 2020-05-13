@@ -16,11 +16,11 @@ manual_scaling:
   instances: 1
 
 env_variables:
-  GCS_BUCKET: "snt_covid19/v2"
-  GCS_MODEL: "mlp.save"
-  GCS_SCALER: "scaler.save"
-  GCS_METRICS: "metrics.json"
-  GCS_FEATURES: "features.csv"
+  GCS_BUCKET: "snt_covid19"
+  GCS_MODEL: "v2/mlp.save"
+  GCS_SCALER: "v2/scaler.save"
+  GCS_METRICS: "v2/metrics.json"
+  GCS_FEATURES: "v2/features.csv"
 
 resources:
   cpu: 1

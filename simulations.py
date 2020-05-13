@@ -15,14 +15,18 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     cols = list(df.columns)
     data = df[df["Date"] >= active_date]
 
+    ref_data = df[df["Date"] == active_date + timedelta(days=-7)]
+    #print(data['Date'].iloc[0],ref_data.iloc[0])
+
     if l_date is None:
         l_date = active_date
     population = data["population"].min()
     N = population
     n_infected = data['InfectiousCases'].iloc[0]
     n_exposed = data['ExposedCases'].iloc[0]  # data['ConfirmedCases_y'].iloc[0]
-    n_hospitalized = data['HospitalizedCases'].iloc[0]
-    n_critical = data['CriticalCases'].iloc[0]
+    n_exposed = data['ConfirmedCases_y'].iloc[0] - ref_data['ConfirmedCases_y'].iloc[0]
+    n_hospitalized = data['HospitalizedCases'].iloc[0]*1.5
+    n_critical = data['CriticalCases'].iloc[0]*1.5
     n_recovered = data['RecoveredCases'].iloc[0]
     n_deaths = data['ConfirmedDeaths'].iloc[0]
     # S, E, I, R, H, C, D
@@ -38,7 +42,7 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
             params[i] = data[param].mean()
 
     "decay_values"
-    params.append(True)
+    params.append(False)
     R_t = data['R'].values
 
     def time_varying_reproduction(t):
@@ -65,12 +69,17 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     fig_size = (20, 5)
 
     # print(l,len(y_pred_cases),y_pred_hosp_max.min(),y_pred_hosp_max.max() )
+    smoothing_columns = ["SimulationCases", "SimulationHospital", "SimulationCritical", "SimulationDeaths"]
+
     simulations = pd.DataFrame({"Date": dates, "SimulationCases": y_pred_cases.astype(int),
                                 "SimulationHospital": y_pred_hosp.astype(int) + y_pred_critic.astype(int),
                                 "SimulationCritical": y_pred_critic.astype(int),
                                 "SimulationDeaths": y_pred_deaths.astype(int)})
 
     simulations["R"] = data['R'].iloc[1:].values
+
+    for e in smoothing_columns:
+        simulations[e] = simulations[e].rolling(3, 2,center=True).mean().astype(int)
 
     if confidence_interval:
 
@@ -101,18 +110,22 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
              "SimulationHospital_min": y_pred_hosp_min.astype(int) + y_pred_critic_min.astype(int),
              "SimulationCritical_min": y_pred_critic_min.astype(int),
              "SimulationDeaths_min": y_pred_deaths_min.astype(int)})
+        simulations_min["R_min"] = data['R_min'].iloc[1:].values
 
         simulations_max = pd.DataFrame(
             {"Date": dates[:len(y_pred_hosp_max)], "SimulationCases_max": y_pred_cases_max.astype(int),
              "SimulationHospital_max": y_pred_hosp_max.astype(int) + y_pred_critic_max.astype(int),
              "SimulationCritical_max": y_pred_critic_max.astype(int),
              "SimulationDeaths_max": y_pred_deaths_max.astype(int)})
+        simulations_max["R_max"] = data['R_max'].iloc[1:].values
+
+        for e in smoothing_columns:
+            simulations_min["{}_min".format(e)] = simulations_min["{}_min".format(e)].rolling(3, 2,center=True).mean().astype(int)
+            simulations_max["{}_max".format(e)] = simulations_max["{}_max".format(e)].rolling(3, 2,center=True).mean().astype(int)
 
         simulations = pd.merge(simulations, simulations_min, how="left", on="Date")
         simulations = pd.merge(simulations, simulations_max, how="left", on="Date")
-        simulations = simulations.fillna(method='ffill')
-        simulations["R_min"] = data['R_min'].iloc[1:].values
-        simulations["R_max"] = data['R_max'].iloc[1:].values
+        simulations = simulations.dropna()#fillna(method='ffill')
 
     if folder is not None:
         simulations.to_csv("{}/out.csv".format(folder))
@@ -236,8 +249,8 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
         y_lift = mlp_clf.predict(X_lift)
 
         country_lift["R"] = np.clip(y_lift, 0, 10)
-        country_lift["R_min"] = np.clip(y_lift - yvar.mean() / 2, 0, 10)
-        country_lift["R_max"] = np.clip(y_lift + yvar.mean() / 2, 0, 10)
+        country_lift["R_min"] = np.clip(y_lift - yvar.mean(), 0, 10)
+        country_lift["R_max"] = np.clip(y_lift + yvar.mean(), 0, 10)
 
         if folder is not None:
             ax1 = country_lift.plot(x="Date", y="R", figsize=(20, 5), color="red")
