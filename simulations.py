@@ -12,21 +12,35 @@ from SEIR import SEIR_HCD_model
 ### building seir predictions:
 
 def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_interval=True):
+
     cols = list(df.columns)
     data = df[df["Date"] >= active_date]
 
+    # t_hosp=7, t_crit=14, m_a=0.8, c_a=0.1, f_a=0.3
+    ref_params = [7, 14, 0.7, 0.3, 0.3]
+    params = [7, 14, 0.8, 0.3, 0.3]
+    params_name = ("t_hosp", "t_crit", "m", "c", "f")
+    for i, param in enumerate(params_name):
+        if param in cols:
+            params[i] = data[param].mean()
+    params = ref_params
+    print("disease params", params, np.sum([params, ref_params], axis=1))
+    # "decay_values"
+    params.append(False)
+
+
     ref_data = df[df["Date"] == active_date + timedelta(days=-7)]
+    inf_data = df[df["Date"] == active_date + timedelta(days=-14)]
     #print(data['Date'].iloc[0],ref_data.iloc[0])
 
     if l_date is None:
         l_date = active_date
     population = data["population"].min()
     N = population
-    n_infected = data['InfectiousCases'].iloc[0]
-    n_exposed = data['ExposedCases'].iloc[0]  # data['ConfirmedCases_y'].iloc[0]
-    n_exposed = data['ConfirmedCases_y'].iloc[0] - ref_data['ConfirmedCases_y'].iloc[0]
-    n_hospitalized = data['HospitalizedCases'].iloc[0]*1.5
-    n_critical = data['CriticalCases'].iloc[0]*1.5
+    n_infected = ref_data['ConfirmedCases_y'].iloc[0]-inf_data['ConfirmedCases_y'].iloc[0] #data['InfectiousCases'].iloc[0]
+    n_exposed = data['ConfirmedCases_y'].iloc[0] - ref_data['ConfirmedCases_y'].iloc[0] #data['ExposedCases'].iloc[0]
+    n_hospitalized = (1-params[2]) * n_exposed #data['HospitalizedCases'].iloc[0]*1.5
+    n_critical = (params[3]) * n_hospitalized #data['CriticalCases'].iloc[0]*1.5
     n_recovered = data['RecoveredCases'].iloc[0]
     n_deaths = data['ConfirmedDeaths'].iloc[0]
     # S, E, I, R, H, C, D
@@ -35,13 +49,15 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
 
     # t_hosp=7, t_crit=14, m_a=0.8, c_a=0.1, f_a=0.3
 
+    ref_params =  [7, 14, 0.8, 0.3, 0.3]
     params = [7, 14, 0.8, 0.3, 0.3]
     params_name = ("t_hosp", "t_crit", "m", "c", "f")
     for i, param in enumerate(params_name):
         if param in cols:
             params[i] = data[param].mean()
-
-    "decay_values"
+    params = ref_params
+    print("disease params", params, np.sum([params, ref_params],axis=1))
+    #"decay_values"
     params.append(False)
     R_t = data['R'].values
 
@@ -249,8 +265,8 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
         y_lift = mlp_clf.predict(X_lift)
 
         country_lift["R"] = np.clip(y_lift, 0, 10)
-        country_lift["R_min"] = np.clip(y_lift - yvar.mean(), 0, 10)
-        country_lift["R_max"] = np.clip(y_lift + yvar.mean(), 0, 10)
+        country_lift["R_min"] = np.clip(y_lift - yvar.mean()/2, 0, 10)
+        country_lift["R_max"] = np.clip(y_lift + yvar.mean()/2, 0, 10)
 
         if folder is not None:
             ax1 = country_lift.plot(x="Date", y="R", figsize=(20, 5), color="red")
