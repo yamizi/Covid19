@@ -24,7 +24,7 @@ from simulations import simulate, simulate_constantRt
 country_name = "Luxembourg"
 SEED = random.randint(0,1000)
 current_dataset_date = date(2020,5,10).strftime("%Y_%m_%d")
-current_dataset_date = "v2"
+current_dataset_date = "v2_1"
 
 folder = "./models/seirhcd/{}".format(current_dataset_date)
 scaler = joblib.load("{}/scaler.save".format(folder)) 
@@ -41,7 +41,15 @@ with open('{}/metrics.json'.format(folder)) as fp:
 def corr_matrix(countries, country):
     df = countries[countries["CountryName"] == country] if country is not None else countries
     #[        ['retail/recreation', 'grocery/pharmacy', 'parks', 'transit_stations',         'workplace', 'residential']]
-    df = df.loc[:,countries.columns.values[18:-7]]
+    features = countries.columns.values[18:-7]
+
+    print(df.columns)
+    for e in features[:5]:
+        df.plot(x="R", y=e)
+    plt.show()
+    df = df.loc[:,features]
+    return
+
     print(df.describe())
     #print(df.head(1))
     f = plt.figure(figsize=(19, 15))
@@ -60,7 +68,7 @@ if __name__ == '__main__':
 
     corr_matrix(merged, "Belgium")
     corr_matrix(merged, "France")
-    exit()
+    #exit()
 
     lift_date = pd.to_datetime("2020-05-01")
     end_date = pd.to_datetime("2020-9-11")
@@ -84,8 +92,7 @@ if __name__ == '__main__':
         if country_sub.shape[0] ==0:
             country_sub = country_df
 
-        measures_to_lift = [["transit_stations", "workplace", "S1_School closing"]]
-        #measure_values = [0, 0, 0]
+        measures_to_lift = [["transit_stations", "workplace"]]
         lift_date = pd.to_datetime("2020-05-11")
         end_date = pd.to_datetime("2020-9-11")
         res = simulate(country_df, measures_to_lift, 0, end_date, lift_date, columns, yvar, mlp_clf, scaler,

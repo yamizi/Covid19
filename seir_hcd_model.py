@@ -49,8 +49,8 @@ dataset = dataset.drop(["Unnamed: 0"],axis=1)
 
 """## ML to predict Reproduction Rate"""
 
-current_dataset_date = "v2"
-all_countries= pd.read_csv("./datasets/v2_seirhcd.csv", parse_dates=['Date'])
+current_dataset_date = "v2_1"
+all_countries= pd.read_csv("datasets/v2_1_seirhcd.csv", parse_dates=['Date'])
 
 columns_start_label = "grocery/pharmacy_15days"
 columns_end_label ="day_of_week_6"

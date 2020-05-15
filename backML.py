@@ -1,6 +1,5 @@
 import os , json 
 from flask import Flask, request, jsonify, send_from_directory
-from sklearn.externals import joblib
 import pandas as pd
 import hashlib
 import re

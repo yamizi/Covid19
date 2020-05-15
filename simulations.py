@@ -274,6 +274,8 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
         country_lift["R_min"] = np.clip(y_lift - yvar.mean()/2, 0, 10)
         country_lift["R_max"] = np.clip(y_lift + yvar.mean()/2, 0, 10)
 
+        measures_to_display = ["transit_stations","retail/recreation","school","workplace","international_transport","grocery/pharmacy", "parks"]
+
         if folder is not None:
             ax1 = country_lift.plot(x="Date", y="R", figsize=(20, 5), color="red")
             plt.fill_between(np.arange(len(country_lift["R"])), country_lift["R_min"], country_lift["R_max"],
@@ -281,7 +283,8 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
             ax1.legend(loc="lower left")
             ax2 = ax1.twinx()
             ax2.spines['right'].set_position(('axes', 1.0))
-            country_lift.plot(ax=ax2, x="Date", y=list(set(measure_to_lift)))
+            print(country_lift.head(1).to_dict(orient='records'))
+            country_lift.plot(ax=ax2, x="Date", y=measures_to_display)
             ax2.legend(loc="lower right")
 
             fig_R = ax1.get_figure()
