@@ -93,7 +93,7 @@ from copy import deepcopy
 nb_iters = 5
 best_perf = -1
 best_model = None
-search = True
+search = False
 for i in range(nb_iters):
     print("Iter search {}".format(i))
     parameter_space = {
@@ -130,6 +130,7 @@ params = srch.get_params()
 reg.set_params(alpha_init=params["estimator__alpha_init"], lambda_init=params["estimator__lambda_init"])
 reg.fit(X_train, y_train)
 ymean, ystd = reg.predict(X_test, return_std=True)
+
 
 
 folder = "./models/seirhcd/{}".format(current_dataset_date)
