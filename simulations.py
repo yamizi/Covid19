@@ -24,7 +24,7 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
         if param in cols:
             params[i] = data[param].mean()
     params = ref_params
-    print("disease params", params, np.sum([params, ref_params], axis=1))
+    #print("disease params", params, np.sum([params, ref_params], axis=1))
     # "decay_values"
     params.append(False)
 
@@ -35,7 +35,7 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
 
     if l_date is None:
         l_date = active_date
-    population = data["population"].min()
+    population = data["population"].min() *0.7 # Herd immunity is assumed at 70%
     N = population
     n_infected = ref_data['ConfirmedCases_y'].iloc[0]-inf_data['ConfirmedCases_y'].iloc[0] #data['InfectiousCases'].iloc[0]
     n_exposed = data['ConfirmedCases_y'].iloc[0] - ref_data['ConfirmedCases_y'].iloc[0] #data['ExposedCases'].iloc[0]
@@ -56,10 +56,10 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     for i, param in enumerate(params_name):
         if param in cols:
             params[i] = data[param].mean()
-    params = ref_params
+    #params = ref_params
     print("disease params", params, np.sum([params, ref_params],axis=1))
     #"decay_values"
-    params.append(False)
+    params.append(True)
     R_t = data['R'].values
 
     def time_varying_reproduction(t):
@@ -142,6 +142,11 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
 
         simulations = pd.merge(simulations, simulations_min, how="left", on="Date")
         simulations = pd.merge(simulations, simulations_max, how="left", on="Date")
+
+        herd = (1-1/simulations["R_max"])* population
+        min_pop = 0.05
+        simulations["Herd_immunity"] = herd.clip(min_pop*population, population)
+
         simulations = simulations.dropna()#fillna(method='ffill')
 
     if folder is not None:

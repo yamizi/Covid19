@@ -38,10 +38,12 @@ with open('{}/metrics.json'.format(folder)) as fp:
 
 """## Simulations"""
 
-def corr_matrix():
-    df = merged[merged["CountryName"] == country_name][
-        ['retail/recreation', 'grocery/pharmacy', 'parks', 'transit_stations',
-         'workplace', 'residential']]
+def corr_matrix(countries, country):
+    df = countries[countries["CountryName"] == country] if country is not None else countries
+    #[        ['retail/recreation', 'grocery/pharmacy', 'parks', 'transit_stations',         'workplace', 'residential']]
+    df = df.loc[:,countries.columns.values[18:-7]]
+    print(df.describe())
+    #print(df.head(1))
     f = plt.figure(figsize=(19, 15))
     plt.matshow(df.corr(), fignum=f.number)
     plt.xticks(range(df.shape[1]), df.columns, fontsize=14, rotation=45)
@@ -56,6 +58,9 @@ def corr_matrix():
 
 if __name__ == '__main__':
 
+    corr_matrix(merged, "Belgium")
+    corr_matrix(merged, "France")
+    exit()
 
     lift_date = pd.to_datetime("2020-05-01")
     end_date = pd.to_datetime("2020-9-11")
@@ -69,14 +74,25 @@ if __name__ == '__main__':
 
     eval_date = pd.to_datetime("2020-04-29")
     ref_date = pd.to_datetime("2020-02-15")
-    countries = ["Belgium","France","Germany","Greece","Italy","Latvia","Luxembourg","Netherlands","Spain","Switzerland","Brazil","Cameroon","Canada","Japan","United Kingdom"]
+    countries = ["Belgium","France"] #,"Germany","Greece","Italy","Latvia","Luxembourg","Netherlands","Spain","Switzerland","Brazil","Cameroon","Canada","Japan","United Kingdom"]
 
     for country_name in countries:
         country_df = merged[merged["CountryName"]==country_name]
+        if country_df.shape[0] ==0:
+            continue
         country_sub = country_df[country_df["Date"]<=ref_date]
         if country_sub.shape[0] ==0:
             country_sub = country_df
-        res = simulate_constantRt(country_sub, end_date)
+
+        measures_to_lift = [["transit_stations", "workplace", "S1_School closing"]]
+        #measure_values = [0, 0, 0]
+        lift_date = pd.to_datetime("2020-05-11")
+        end_date = pd.to_datetime("2020-9-11")
+        res = simulate(country_df, measures_to_lift, 0, end_date, lift_date, columns, yvar, mlp_clf, scaler,
+                 measure_values=measure_values, base_folder=folder, seed="v2")
+        # plt.show()
+
+        #res = simulate_constantRt(country_sub, end_date)
         frame = res[res["Date"]==eval_date].to_dict(orient="records")[0]
         print("{} {} {}".format(country_name, frame["Date"],frame["SimulationDeaths"]))
 
