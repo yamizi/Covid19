@@ -34,6 +34,14 @@ def create_dates(raw_dates):
     return dates
 
 
+def create_closed_border_exit(country):
+    dates = ['2020-05-11']
+    measures = get_no_lockdown(country)
+    measures[6] = get_initial_lockdown(country)[6]
+
+    return (dates, measures)
+
+
 def create_hard_exit(country):
     dates = ['2020-05-11']
     measures = get_no_lockdown(country)
@@ -80,6 +88,8 @@ def get_scenario(country, scenario_name):
         dates, values = create_soft_exit(country)
     elif scenario_name == 'cyclic exit':
         dates, values = create_cyclic_exit(country)
+    elif scenario_name == 'closed border exit':
+        dates, values = create_closed_border_exit(country)
     else:
         dates, values = create_no_exit(country)
 
@@ -150,9 +160,8 @@ def draw_plots(raw_data):
 if __name__ == '__main__':
     t_start = time.perf_counter()
 
-    #countries = ['Belgium', 'France', 'Germany', 'Greece', 'Italy', 'Latvia', 'Luxembourg', 'Netherlands', 'Spain', 'Switzerland', 'Brazil', 'Cameroon', 'Canada', 'Japan', 'United Kingdom']
-    countries = ['Japan', 'Luxembourg', 'Italy']
-    scenarios = ['hard exit', 'no exit', 'progressive exit', 'cyclic exit']
+    countries = ['Belgium', 'France', 'Germany', 'Greece', 'Italy', 'Latvia', 'Luxembourg', 'Netherlands', 'Spain', 'Switzerland', 'Brazil', 'Cameroon', 'Canada', 'Japan', 'United Kingdom']
+    scenarios = ['hard exit', 'no exit', 'progressive exit', 'cyclic exit', 'closed border exit']
 
     simulation = run_simulation(countries, scenarios)
     draw_plots(simulation)
