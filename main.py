@@ -76,7 +76,7 @@ def predict():
         country_name = json_.get("country_name")
         country_df = merged[merged["CountryName"] == country_name]
 
-        end_date = pd.to_datetime("2020-9-11")
+        end_date = pd.to_datetime("2020-12-11")
         df = simulate(country_df, measures_to_lift, 0, end_date, None, columns, yvar, mlp_clf, scaler,
                       measure_values=measure_values, base_folder=None, seed=seed, lift_date_values=measure_dates)
         df = df.to_dict(orient='records')

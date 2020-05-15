@@ -78,6 +78,7 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     y_pred_critic = np.clip(crit, 0, np.inf) * population
     y_pred_hosp = np.clip(hosp, 0, np.inf) * population
     y_pred_deaths = np.clip(deaths, 0, np.inf) * population
+    y_pred_infectious = np.clip(inf, 0, np.inf) * population
 
     dates = data["Date"].iloc[1:]
     l = len(dates)
@@ -91,7 +92,8 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     simulations = pd.DataFrame({"Date": dates, "SimulationCases": y_pred_cases.astype(int),
                                 "SimulationHospital": y_pred_hosp.astype(int) + y_pred_critic.astype(int),
                                 "SimulationCritical": y_pred_critic.astype(int),
-                                "SimulationDeaths": y_pred_deaths.astype(int)})
+                                "SimulationDeaths": y_pred_deaths.astype(int),
+                               "SimulationInfectious": y_pred_infectious.astype(int)})
 
     simulations["R"] = data['R'].iloc[1:].values
 
@@ -115,25 +117,28 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
         y_pred_critic_min = np.clip(crit_min, 0, np.inf) * population
         y_pred_hosp_min = np.clip(hosp_min, 0, np.inf) * population
         y_pred_deaths_min = np.clip(deaths_min, 0, np.inf) * population
+        y_pred_infectious_min = np.clip(inf_min, 0, np.inf) * population
 
         y_pred_cases_max = np.clip(inf_max + rec_max + hosp_max + crit_max + deaths_max, 0, np.inf) * population
         y_pred_critic_max = np.clip(crit_max, 0, np.inf) * population
         y_pred_hosp_max = np.clip(hosp_max, 0, np.inf) * population
         y_pred_deaths_max = np.clip(deaths_max, 0, np.inf) * population
-
+        y_pred_infectious_max = np.clip(inf_max, 0, np.inf) * population
 
         simulations_min = pd.DataFrame(
             {"Date": dates[:len(y_pred_hosp_min)], "SimulationCases_min": y_pred_cases_min.astype(int),
              "SimulationHospital_min": y_pred_hosp_min.astype(int) + y_pred_critic_min.astype(int),
              "SimulationCritical_min": y_pred_critic_min.astype(int),
-             "SimulationDeaths_min": y_pred_deaths_min.astype(int)})
+             "SimulationDeaths_min": y_pred_deaths_min.astype(int),
+             "SimulationInfectious_min": y_pred_infectious_min.astype(int)})
         simulations_min["R_min"] = data['R_min'].iloc[1:].values
 
         simulations_max = pd.DataFrame(
             {"Date": dates[:len(y_pred_hosp_max)], "SimulationCases_max": y_pred_cases_max.astype(int),
              "SimulationHospital_max": y_pred_hosp_max.astype(int) + y_pred_critic_max.astype(int),
              "SimulationCritical_max": y_pred_critic_max.astype(int),
-             "SimulationDeaths_max": y_pred_deaths_max.astype(int)})
+             "SimulationDeaths_max": y_pred_deaths_max.astype(int),
+             "SimulationInfectious_max": y_pred_infectious_max.astype(int)})
         simulations_max["R_max"] = data['R_max'].iloc[1:].values
 
         for e in smoothing_columns:

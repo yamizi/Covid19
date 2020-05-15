@@ -44,7 +44,7 @@ There are certain variables that we can play with to fit the model to real data:
 """
 
 current_dataset_date = date(2020,5,10).strftime("%Y_%m_%d")
-dataset= pd.read_csv("./datasets/v2_google.csv", parse_dates=['Date'])
+dataset= pd.read_csv("./datasets/v2_1_google.csv", parse_dates=['Date'])
 dataset = dataset.drop(["Unnamed: 0"],axis=1)
 
 """## ML to predict Reproduction Rate"""
