@@ -10,24 +10,19 @@ Original file is located at
 # Commented out IPython magic to ensure Python compatibility.
 import pandas as pd
 import numpy as np
-from pathlib import Path
 import json, os
-from scipy.integrate import solve_ivp
-from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from sklearn.linear_model import BayesianRidge
-from sklearn.model_selection import train_test_split
 from sklearn.externals import joblib
 
 from datetime import date
 from sklearn.model_selection import GridSearchCV
 from sklearn import preprocessing
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.base import clone
 
 from helpers import metrics_report
-
+from simulations import features, periods
 country_name = "Luxembourg"
 
 
@@ -52,10 +47,8 @@ dataset = dataset.drop(["Unnamed: 0"],axis=1)
 current_dataset_date = "v2_1"
 all_countries= pd.read_csv("datasets/v2_1_seirhcd.csv", parse_dates=['Date'])
 
-columns_start_label = "grocery/pharmacy_15days"
-columns_end_label ="day_of_week_6"
-
 dataset = pd.get_dummies(dataset,prefix="day_of_week", columns=["day_of_week"])
+dataset = pd.get_dummies(dataset,prefix="region", columns=["region"])
 merged = pd.merge(all_countries.groupby(["CountryName","Date"]).agg("first"), dataset.groupby(["CountryName","Date"]).agg("first"),  on=["CountryName","Date"], how="inner")
 merged = merged.reset_index().dropna()
 print(merged.describe())
@@ -63,16 +56,13 @@ print(merged.describe())
 #print(merged.head(1),merged.tail(1))
 
 merged_columns = list(merged.columns)
-print(merged_columns)
 
-columns_start = merged_columns.index(columns_start_label)
-columns_end = merged_columns.index(columns_end_label)
-columns = merged_columns[columns_start:columns_end+1]
-exclude_columns = ['residential_15days', 'residential_10days', 'residential_5days', 'residential_30days', 'public_transport_15days', 'public_transport_10days', 'public_transport_5days', 'public_transport_30days']
-columns = [e for e in columns if e not in exclude_columns]
+columns = ["{}{}".format(f,p) for p in periods for f in features]
+
 columns = columns + ["density","population","population_p65","population_p14","gdp","area"]
-
-print(columns)
+columns = columns + ["day_of_week_{}".format(i) for i in range(7)]
+columns = columns + ["region_{}".format(i) for i in range(10)]
+merged = merged.rename(columns={'region_10':'region_9'})
 country_names = ["Luxembourg","France","Germany","Spain","United kingdom","Greece","Italy","Switzerland","Latvia","Belgium","Netherlands"]
 country = merged[merged["CountryName"].isin(country_names)]
 non_country = merged[~merged["CountryName"].isin(country_names)]
@@ -90,10 +80,12 @@ print("train in {} elements, test on {} elements".format(X_train.shape,X_test.sh
 print("min-max",X_train_scaled.min(axis=1),X_train_scaled.max(axis=1))
 
 from copy import deepcopy
-nb_iters = 5
 best_perf = -1
 best_model = None
 search = False
+
+nb_iters = 1 if search else 5
+
 for i in range(nb_iters):
     print("Iter search {}".format(i))
     parameter_space = {

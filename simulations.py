@@ -8,6 +8,9 @@ from datetime import timedelta, datetime, date
 from scipy.integrate import solve_ivp
 from SEIR import SEIR_HCD_model
 
+features = ["parks", "residential", "retail/recreation", "transit_stations", "workplace"] #, "grocery/pharmacy","school",      "international_transport"]
+periods = ["","_5days","_10days","_15days","_30days"]
+
 
 ### building seir predictions:
 
@@ -212,7 +215,6 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
 ### updating means
 
 def update_mean(df):
-    features = ["grocery/pharmacy", "parks", "residential", "retail/recreation", "transit_stations", "workplace","school", "international_transport"]
     df[features] = df[features].rolling(3, 2).mean()
     for f in features:
         days_15 = df[f].rolling(15, min_periods=14).mean().fillna(method="bfill")
@@ -254,7 +256,7 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
         while current_date < end_date:
             current_date = current_date + timedelta(days=1)
 
-            obj = {"Date": current_date}
+            obj = {"Date": current_date, "day_of_week":current_date.weekday}
 
             measures_translations = {"S7_International travel controls":"international_transport","S1_School closing":"school"}
             # df[["S1_School closing", "S3_Cancel public events"
@@ -271,6 +273,7 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
 
             country_lift = country_lift.append(obj, ignore_index=True)
 
+        country_lift = pd.get_dummies(country_lift, prefix="day_of_week", columns=["day_of_week"])
         country_lift = update_mean(country_lift.fillna(method="pad")).fillna(method="bfill")
         X_lift = scaler.transform(country_lift[columns])
         y_lift = mlp_clf.predict(X_lift)
