@@ -51,18 +51,6 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     initial_state = [(N - n_infected) / N, n_exposed / N, n_infected / N, n_recovered / N, n_hospitalized / N,
                      n_critical / N, n_deaths / N]
 
-    # t_hosp=7, t_crit=14, m_a=0.8, c_a=0.1, f_a=0.3
-
-    ref_params =  [7, 14, 0.8, 0.3, 0.3]
-    params = [7, 14, 0.8, 0.3, 0.3]
-    params_name = ("t_hosp", "t_crit", "m", "c", "f")
-    for i, param in enumerate(params_name):
-        if param in cols:
-            params[i] = data[param].mean()
-    #params = ref_params
-    print("disease params", params, np.sum([params, ref_params],axis=1))
-    #"decay_values"
-    params.append(True)
     R_t = data['R'].values
 
     def time_varying_reproduction(t):
@@ -236,12 +224,12 @@ def update_mean(df):
 
 
 def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, yvar, mlp_clf, scaler,
-             measure_values=None, lift_date_values=None, base_folder="./plots/simulations", seed=""):
-    print("Building simulation for ", measures_to_lift, df["CountryName"].unique())
+             measure_values=None, lift_date_values=None, base_folder="./plots/simulations", seed="", confidence_interval=True, filter_output=None):
+    #print("Building simulation for ", measures_to_lift, df["CountryName"].unique())
 
     init_date = df["Date"].tail(1).dt.date.values[0]
-
-    for measure_to_lift in measures_to_lift:
+    all_simulations = []
+    for k, measure_to_lift in enumerate(measures_to_lift):
         country_lift = df.copy()
         current_date = init_date
 
@@ -262,13 +250,13 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
             # df[["S1_School closing", "S3_Cancel public events"
 
             measure_labels = [measures_translations.get(e,e) for e in measure_to_lift]
+            vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values
 
             for i, measure in enumerate(measure_labels):
-
                 lift = current_date >= lift_date_values[i] if lift_date_values is not None and len(
                     lift_date_values) > i else current_date >= lift_date
                 if lift:
-                    obj[measure] = measure_values[i] if measure_values is not None else measure_value
+                    obj[measure] = vals[i] if vals is not None else measure_value
 
 
             country_lift = country_lift.append(obj, ignore_index=True)
@@ -302,9 +290,14 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
             fig_R.clf()
             plt.close("all")
 
-    country_lift = update_seir(country_lift, init_date, end_date, folder)
+        country_lift = update_seir(country_lift, init_date, end_date, folder, confidence_interval=confidence_interval)
 
-    return country_lift
+        if filter_output:
+            all_simulations.append(country_lift[filter_output])
+        else:
+            all_simulations.append(country_lift)
+
+    return country_lift if len(measures_to_lift)==1 else all_simulations
 
 
 def simulate_constantRt(df, end_date, Rt=None):

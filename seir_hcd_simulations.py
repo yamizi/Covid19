@@ -15,7 +15,6 @@ from pathlib import Path
 import os , json , random
 from datetime import timedelta , datetime, date
 
-from scipy.integrate import solve_ivp
 from sklearn.externals import joblib
 from simulations import simulate, simulate_constantRt
 
