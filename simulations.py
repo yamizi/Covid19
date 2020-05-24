@@ -306,7 +306,8 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
 
     return country_lift
 
-def simulate_constantRt(df, end_date):
+
+def simulate_constantRt(df, end_date, Rt=None):
 
 
   init_date = df["Date"].tail(1).dt.date.values[0]
@@ -319,6 +320,9 @@ def simulate_constantRt(df, end_date):
       obj = {"Date": current_date}
       country_lift = country_lift.append(obj, ignore_index=True)
 
+  if Rt is not None:
+      print(country_lift[["Date","R"]])
+      country_lift["R"] = Rt
   country_lift = update_mean(country_lift.fillna(method="pad")).fillna(method="bfill")
   country_lift = update_seir(country_lift, init_date, end_date, None, confidence_interval=False)
 

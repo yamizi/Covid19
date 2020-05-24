@@ -19,9 +19,8 @@ from datetime import date
 from sklearn.model_selection import GridSearchCV
 from sklearn import preprocessing
 from sklearn.neural_network import MLPRegressor
-from sklearn.base import clone
 
-from helpers import metrics_report
+from utils.helpers import metrics_report
 from simulations import features, periods
 country_name = "Luxembourg"
 
@@ -46,7 +45,6 @@ dataset = dataset.drop(["Unnamed: 0"],axis=1)
 
 current_dataset_date = "v2_1"
 all_countries= pd.read_csv("datasets/v2_1_seirhcd.csv", parse_dates=['Date'])
-
 dataset = pd.get_dummies(dataset,prefix="day_of_week", columns=["day_of_week"])
 dataset = pd.get_dummies(dataset,prefix="region", columns=["region"])
 merged = pd.merge(all_countries.groupby(["CountryName","Date"]).agg("first"), dataset.groupby(["CountryName","Date"]).agg("first"),  on=["CountryName","Date"], how="inner")
@@ -56,13 +54,12 @@ print(merged.describe())
 #print(merged.head(1),merged.tail(1))
 
 merged_columns = list(merged.columns)
-
 columns = ["{}{}".format(f,p) for p in periods for f in features]
-
 columns = columns + ["density","population","population_p65","population_p14","gdp","area"]
 columns = columns + ["day_of_week_{}".format(i) for i in range(7)]
 columns = columns + ["region_{}".format(i) for i in range(10)]
 merged = merged.rename(columns={'region_10':'region_9'})
+
 country_names = ["Luxembourg","France","Germany","Spain","United kingdom","Greece","Italy","Switzerland","Latvia","Belgium","Netherlands"]
 country = merged[merged["CountryName"].isin(country_names)]
 non_country = merged[~merged["CountryName"].isin(country_names)]
