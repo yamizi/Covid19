@@ -46,6 +46,8 @@ class ScheduleProblem(Problem):
         self.measures_dates = np.array([(f, d) for f in features for d in dates])
         nb_var = len(self.measures_dates)
 
+        self.last = []
+
         super().__init__(n_var=nb_var,
                          n_obj=2,
                          n_constr=1,
@@ -62,18 +64,21 @@ class ScheduleProblem(Problem):
         begin= time.time()
         res = simulate(self.df.copy(), [measures_to_lift]*len(x), 0, self.end_date, None, self.columns, self.yvar, self.mlp_clf, self.scaler,
                            measure_values=x, base_folder=None, lift_date_values=lift_date_values,
-                           seed="", filter_output=["SimulationCritical","SimulationDeaths"], confidence_interval=False)
+                           seed="", filter_output=["R","SimulationCritical","SimulationDeaths"], confidence_interval=False)
         end = time.time()
 
         # f1 minimize the deaths
         # f2 maximize the activity (maximize x values => minimize the absolute value of f2)
         f1 = np.array([e["SimulationDeaths"].tail(1).values[0] for e in res])
         f2 = np.abs(x.mean(axis=1))
+        self.last = res
         print(end-begin,f1, f2)
 
         g1 = np.array([e["SimulationCritical"].max() for e in res]) - self.critical_capacity
 
-        out["F"] = np.column_stack([np.abs((f1-self.initial_deaths)/self.initial_deaths), f2/100])
+        #f1 = (f1-self.initial_deaths)/self.initial_deaths
+        #f2 = f2/100
+        out["F"] = np.column_stack([np.abs(f1), f2])
         out["G"] = np.column_stack([g1])
 
 
