@@ -8,6 +8,9 @@ from datetime import timedelta, datetime, date
 from scipy.integrate import solve_ivp
 from SEIR import SEIR_HCD_model
 
+features = ["parks", "residential", "retail/recreation", "transit_stations", "workplace"] #, "grocery/pharmacy","school",      "international_transport"]
+periods = ["","_5days","_10days","_15days","_30days"]
+
 
 ### building seir predictions:
 
@@ -78,6 +81,7 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     y_pred_critic = np.clip(crit, 0, np.inf) * population
     y_pred_hosp = np.clip(hosp, 0, np.inf) * population
     y_pred_deaths = np.clip(deaths, 0, np.inf) * population
+    y_pred_infectious = np.clip(inf, 0, np.inf) * population
 
     dates = data["Date"].iloc[1:]
     l = len(dates)
@@ -91,7 +95,8 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     simulations = pd.DataFrame({"Date": dates, "SimulationCases": y_pred_cases.astype(int),
                                 "SimulationHospital": y_pred_hosp.astype(int) + y_pred_critic.astype(int),
                                 "SimulationCritical": y_pred_critic.astype(int),
-                                "SimulationDeaths": y_pred_deaths.astype(int)})
+                                "SimulationDeaths": y_pred_deaths.astype(int),
+                               "SimulationInfectious": y_pred_infectious.astype(int)})
 
     simulations["R"] = data['R'].iloc[1:].values
 
@@ -115,25 +120,28 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
         y_pred_critic_min = np.clip(crit_min, 0, np.inf) * population
         y_pred_hosp_min = np.clip(hosp_min, 0, np.inf) * population
         y_pred_deaths_min = np.clip(deaths_min, 0, np.inf) * population
+        y_pred_infectious_min = np.clip(inf_min, 0, np.inf) * population
 
         y_pred_cases_max = np.clip(inf_max + rec_max + hosp_max + crit_max + deaths_max, 0, np.inf) * population
         y_pred_critic_max = np.clip(crit_max, 0, np.inf) * population
         y_pred_hosp_max = np.clip(hosp_max, 0, np.inf) * population
         y_pred_deaths_max = np.clip(deaths_max, 0, np.inf) * population
-
+        y_pred_infectious_max = np.clip(inf_max, 0, np.inf) * population
 
         simulations_min = pd.DataFrame(
             {"Date": dates[:len(y_pred_hosp_min)], "SimulationCases_min": y_pred_cases_min.astype(int),
              "SimulationHospital_min": y_pred_hosp_min.astype(int) + y_pred_critic_min.astype(int),
              "SimulationCritical_min": y_pred_critic_min.astype(int),
-             "SimulationDeaths_min": y_pred_deaths_min.astype(int)})
+             "SimulationDeaths_min": y_pred_deaths_min.astype(int),
+             "SimulationInfectious_min": y_pred_infectious_min.astype(int)})
         simulations_min["R_min"] = data['R_min'].iloc[1:].values
 
         simulations_max = pd.DataFrame(
             {"Date": dates[:len(y_pred_hosp_max)], "SimulationCases_max": y_pred_cases_max.astype(int),
              "SimulationHospital_max": y_pred_hosp_max.astype(int) + y_pred_critic_max.astype(int),
              "SimulationCritical_max": y_pred_critic_max.astype(int),
-             "SimulationDeaths_max": y_pred_deaths_max.astype(int)})
+             "SimulationDeaths_max": y_pred_deaths_max.astype(int),
+             "SimulationInfectious_max": y_pred_infectious_max.astype(int)})
         simulations_max["R_max"] = data['R_max'].iloc[1:].values
 
         for e in smoothing_columns:
@@ -207,7 +215,6 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
 ### updating means
 
 def update_mean(df):
-    features = ["grocery/pharmacy", "parks", "residential", "retail/recreation", "transit_stations", "workplace","school", "international_transport"]
     df[features] = df[features].rolling(3, 2).mean()
     for f in features:
         days_15 = df[f].rolling(15, min_periods=14).mean().fillna(method="bfill")
@@ -249,7 +256,7 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
         while current_date < end_date:
             current_date = current_date + timedelta(days=1)
 
-            obj = {"Date": current_date}
+            obj = {"Date": current_date, "day_of_week":current_date.weekday}
 
             measures_translations = {"S7_International travel controls":"international_transport","S1_School closing":"school"}
             # df[["S1_School closing", "S3_Cancel public events"
@@ -266,6 +273,7 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
 
             country_lift = country_lift.append(obj, ignore_index=True)
 
+        country_lift = pd.get_dummies(country_lift, prefix="day_of_week", columns=["day_of_week"])
         country_lift = update_mean(country_lift.fillna(method="pad")).fillna(method="bfill")
         X_lift = scaler.transform(country_lift[columns])
         y_lift = mlp_clf.predict(X_lift)
@@ -274,6 +282,8 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
         country_lift["R_min"] = np.clip(y_lift - yvar.mean()/2, 0, 10)
         country_lift["R_max"] = np.clip(y_lift + yvar.mean()/2, 0, 10)
 
+        measures_to_display = ["transit_stations","retail/recreation","school","workplace","international_transport","grocery/pharmacy", "parks"]
+
         if folder is not None:
             ax1 = country_lift.plot(x="Date", y="R", figsize=(20, 5), color="red")
             plt.fill_between(np.arange(len(country_lift["R"])), country_lift["R_min"], country_lift["R_max"],
@@ -281,7 +291,8 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
             ax1.legend(loc="lower left")
             ax2 = ax1.twinx()
             ax2.spines['right'].set_position(('axes', 1.0))
-            country_lift.plot(ax=ax2, x="Date", y=list(set(measure_to_lift)))
+            print(country_lift.head(1).to_dict(orient='records'))
+            country_lift.plot(ax=ax2, x="Date", y=measures_to_display)
             ax2.legend(loc="lower right")
 
             fig_R = ax1.get_figure()
