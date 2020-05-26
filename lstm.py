@@ -70,10 +70,9 @@ def get_input_columns(dataset):
     input_columns = list(dataset.columns)
     input_columns.remove('R')
     input_columns.remove('Date')
-    
-    print(input_columns)
 
     return input_columns
+
 
 def load_dataset():
     '''
@@ -168,30 +167,31 @@ def reframe(dataset, n_in, n_out):
     return reframed
 
 
-def get_x_y(data, n_in, n_features):
+def get_x_y(data, n_in, n_out, n_features):
     '''
     Extract X and Y matrices from the dataset
     '''
 
     y_columns = get_future_output_columns(data)
-    x_columns = [e for e in data.columns if e not in y_columns]
 
-    data_x = data[x_columns].values
-    data_x = data_x.reshape(data_x.shape[0], n_in, n_features)
+    data_x = data.copy()
+    data_x[y_columns] = 0
+    data_x = data_x.values
+    data_x = data_x.reshape(data_x.shape[0], n_in + n_out, n_features)
 
     data_y = data[y_columns].values
 
     return data_x, data_y
     
 
-def train_model(train_X, train_Y, test_X, test_Y):
+def train_model(train_X, train_Y, test_X, test_Y, n_out):
     # design network
     model = Sequential()
     model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2])))
-    model.add(Dense(1))
+    model.add(Dense(n_out))
     model.compile(loss='mae', optimizer='adam')
     # fit network
-    return model.fit(train_X, train_Y, epochs=50, batch_size=72, validation_data=(test_X, test_Y), verbose=2, shuffle=False)
+    return model.fit(train_X, train_Y, epochs=50, batch_size=7, validation_data=(test_X, test_Y), verbose=2, shuffle=False)
 
 def draw_prediction(model):
     pyplot.plot(model.history['loss'], label='train')
@@ -205,18 +205,26 @@ if __name__ == '__main__':
 
     n_in = 15
     n_out = 7
-    n_features = len(get_input_columns(raw_dataset))
+
+    # we add one to account for R which is also a feature
+    n_features = len(get_input_columns(raw_dataset)) + 1
 
     raw_training_set, raw_test_set = split_dataset(raw_dataset, "2020-04-01")
 
     scaler, encoder = normalize_features(raw_training_set)
     training_set = reframe(raw_training_set, n_in, n_out)
-    train_x, train_y = get_x_y(training_set, n_in, n_features)
+    train_x, train_y = get_x_y(training_set, n_in, n_out, n_features)
 
+    # TODO: when computing values for test, use the historical data from the entire dataset
     scaler, encoder = normalize_features(raw_test_set)
     test_set = reframe(raw_test_set, n_in, n_out)
-    test_x, test_y = get_x_y(test_set, n_in, n_features)
+    test_x, test_y = get_x_y(test_set, n_in, n_out, n_features)
 
-    model = train_model(train_x, train_y, test_x, test_y)
+    print('shape train_x: ' + str(train_x.shape))
+    print('shape train_y: ' + str(train_y.shape))
+    print('shape test_x: ' + str(test_x.shape))
+    print('shape test_y: ' + str(test_y.shape))
+
+    model = train_model(train_x, train_y, test_x, test_y, n_out)
 
     draw_prediction(model)
