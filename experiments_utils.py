@@ -10,7 +10,7 @@ EXTENSION = '.png'
 
 
 def features_values():
-    raw_data = pd.read_csv('models/seirhcd/2020_05_10/features.csv')
+    raw_data = pd.read_csv('models/seirhcd/fixed/features.csv')
     raw_data['Date'] = pd.to_datetime(raw_data['Date'])
 
     return raw_data
@@ -22,18 +22,25 @@ def color_palette(data, hue):
     return sns.color_palette("cubehelix", n_colors=n_colors)
 
 
-def lineplot(data, name, x, y, y_label, x_label='', hue=None, y_lim=None, fig_size=(6,4), legend_pos='best', style=None, show_error=False, **kwargs):
+def plot(type, data, name, x, y, y_label, x_label='', hue=None, y_lim=None, fig_size=(6,4), legend_pos='best', style=None, show_error=False, **kwargs):
     fig = plt.figure(figsize=fig_size)
     sns.set(style="white", color_codes=True, font_scale=1.5)
 
     palette = color_palette(data, hue)
 
-    g = sns.lineplot(x=x, y=y, hue=hue, data=data, palette=palette, legend="full", style=style, **kwargs)
+    if type == 'line':
+        g = sns.lineplot(x=x, y=y, hue=hue, data=data, palette=palette, legend="full", style=style, **kwargs)
+        plt.ticklabel_format(style='plain', axis='y',useOffset=False)
+    elif type == 'scatter':
+        g = sns.scatterplot(x=x, y=y, hue=hue, data=data, palette=palette, legend="full", style=style, **kwargs)
+    else:
+        raise TypeError("Only line or scatter are allowed")
 
     fig.tight_layout()
 
     if not legend_pos:
-        g.legend_.remove()
+        if g.legend_:
+            g.legend_.remove()
     elif hue:
         handles, labels = g.get_legend_handles_labels()
         plt.legend(loc='best', prop={'size': 15}, handles=handles[1:], labels=labels[1:])
@@ -41,7 +48,6 @@ def lineplot(data, name, x, y, y_label, x_label='', hue=None, y_lim=None, fig_si
     plt.ylabel(y_label, fontsize=15)
     plt.xlabel(x_label, fontsize=15)
     plt.xticks(rotation=45)
-    plt.ticklabel_format(style='plain', axis='y',useOffset=False)
 
     if y_lim != None and len(y_lim) == 2:
         plt.ylim(y_lim)
