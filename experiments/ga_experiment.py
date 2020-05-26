@@ -1,3 +1,6 @@
+import sys
+sys.path.append("./")
+
 import numpy as np
 from pymoo.algorithms.nsga2 import NSGA2
 from pymoo.factory import get_sampling, get_crossover, get_mutation
@@ -13,7 +16,7 @@ from pymoo.visualization.scatter import Scatter
 countryname = "Luxembourg"
 capacity = 42
 
-#country_name="France", critical_capacity=1980
+countryname, capacity = "France", 1980
 
 problem = ScheduleProblem(country_name=countryname, critical_capacity=capacity)
 
@@ -27,7 +30,7 @@ algorithm = NSGA2(
     eliminate_duplicates=True
 )
 
-termination = get_termination("n_gen", 1)
+termination = get_termination("n_gen", 200)
 res = minimize(problem,
                algorithm,
                termination,
@@ -55,7 +58,9 @@ metric = Hypervolume(ref_point=np.array([1.0, 1.0]))
 
 # collect the population in each generation
 pop_each_gen = [a.pop for a in res.history]
-json.dump("./experiments/ga_{}_lastpop.json".format(countryname), [e.to_dict() for e in problem.last])
+
+with open("./experiments/ga_{}_lastpop.json".format(countryname), 'w') as f:
+    json.dump( [e.to_dict() for e in problem.last], f)
 
 #with open("./experiments/ga_{}_lastpop.json".format(countryname), "w") as fp:
 
