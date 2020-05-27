@@ -13,7 +13,8 @@ from keras.layers import LSTM
 from matplotlib import pyplot
 
 
-TIME_COLUMNS = ["day_of_week_0", "day_of_week_1", "day_of_week_2", "day_of_week_3", "day_of_week_4", "day_of_week_5", "day_of_week_6"]
+REGION_COLUMNS = ['region_{}'.format(i) for i in range(11)]
+TIME_COLUMNS = ['day_of_week_{}'.format(i) for i in range(7)]
 MOBILITY_COLUMNS = ["retail/recreation", "grocery/pharmacy", "parks", "transit_stations", "workplace"]
 DEMOGRAPHY_COLUMNS = ["density", "population", "population_p14", "population_p65", "gdp", "area"]
 
@@ -70,6 +71,7 @@ def get_input_columns(dataset):
     input_columns = list(dataset.columns)
     input_columns.remove('R')
     input_columns.remove('Date')
+    input_columns.remove('CountryName')
 
     return input_columns
 
@@ -88,10 +90,12 @@ def load_dataset():
     countries = pd.read_csv("./datasets/seirhcd.csv", parse_dates=['Date'])
 
     google = pd.get_dummies(google,prefix="day_of_week", columns=["day_of_week"])
+    google = pd.get_dummies(google,prefix="region", columns=["region"])
     dataset = pd.merge(countries.groupby(["CountryName","Date"]).agg("first"), google.groupby(["CountryName","Date"]).agg("first"),  on=["CountryName","Date"], how="inner")
     dataset = dataset.reset_index().dropna()
 
-    columns = ['R', 'CountryName', 'region', 'Date']
+    columns = ['R', 'CountryName', 'Date']
+    columns.extend(REGION_COLUMNS)
     columns.extend(TIME_COLUMNS)
     columns.extend(MOBILITY_COLUMNS)
     columns.extend(DEMOGRAPHY_COLUMNS)
@@ -117,7 +121,7 @@ def split_dataset(dataset, date):
     return training, test
 
 
-def normalize_features(dataset, encoder=None, scaler=None):
+def normalize_features(dataset, scaler=None):
     '''
     All the features should be between 0 and 1
     Categorical values are first set to integers then normalized
@@ -128,15 +132,9 @@ def normalize_features(dataset, encoder=None, scaler=None):
     Returns:
     normalizing scaler (sklearn.preprocessing.MinMaxScaler): a scaler that defines how to normalize the data
     '''
-    x_columns = ['CountryName', 'region']
+    x_columns = []
     x_columns.extend(DEMOGRAPHY_COLUMNS)
     x_columns.extend(MOBILITY_COLUMNS)
-    
-    if encoder: 
-        dataset['CountryName'] = encoder.tranform(dataset['CountryName'])
-    else:
-        encoder = preprocessing.LabelEncoder()
-        dataset['CountryName'] = encoder.fit_transform(dataset['CountryName'])
     
     if scaler:
         dataset[x_columns] = scaler.transform(dataset[x_columns])
@@ -144,7 +142,7 @@ def normalize_features(dataset, encoder=None, scaler=None):
         scaler = preprocessing.MinMaxScaler()
         dataset[x_columns] = scaler.fit_transform(dataset[x_columns])
 
-    return scaler, encoder
+    return scaler
 
 
 def reframe(dataset, n_in, n_out):
@@ -211,12 +209,12 @@ if __name__ == '__main__':
 
     raw_training_set, raw_test_set = split_dataset(raw_dataset, "2020-04-01")
 
-    scaler, encoder = normalize_features(raw_training_set)
+    scaler = normalize_features(raw_training_set)
     training_set = reframe(raw_training_set, n_in, n_out)
     train_x, train_y = get_x_y(training_set, n_in, n_out, n_features)
 
     # TODO: when computing values for test, use the historical data from the entire dataset
-    scaler, encoder = normalize_features(raw_test_set)
+    scaler = normalize_features(raw_test_set, scaler)
     test_set = reframe(raw_test_set, n_in, n_out)
     test_x, test_y = get_x_y(test_set, n_in, n_out, n_features)
 
