@@ -1,14 +1,20 @@
 import pandas as pd
 import numpy as np
 import re
+import random
+import math
 
-from datetime import date
+import helpers
+
+from datetime import date, timedelta
+
+from numpy import concatenate
+
 from sklearn import preprocessing
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_log_error, mean_squared_error, r2_score, mean_absolute_error,median_absolute_error
 
 from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import LSTM
+from keras.layers import Dense, LSTM
 
 from matplotlib import pyplot
 
@@ -64,7 +70,7 @@ def series_to_supervised(data, input_columns, output_columns, n_in=1, n_out=1, d
 
 
 def get_future_output_columns(columns):
-    return [column for column in columns if re.search('^output\-\d+\((t\+\d+|t)\)$', column)]
+    return [column for column in columns if re.search(r'^output\-\d+\((t\+\d+|t)\)$', column)]
 
 
 def get_input_columns(dataset):
@@ -103,7 +109,7 @@ def load_dataset():
     return dataset[columns]
 
 
-def split_dataset(dataset, date):
+def split_dataset(dataset, by, split, n_in=None, n_out=None):
     '''
     Create a split of the dataset based on a date. All data before the date are used for training and the ones after are used for testing
 
@@ -115,8 +121,20 @@ def split_dataset(dataset, date):
     pandas.Dataframe: The training set
     pandas.Datafarame: The testing set
     '''
-    training = dataset[dataset['Date'] <= pd.to_datetime(date)].copy()
-    test = dataset[dataset['Date'] > pd.to_datetime(date)].copy()
+
+    if by == 'date':
+        training = dataset[dataset['Date'] <= pd.to_datetime(split) + timedelta(days=n_out)]
+        test = dataset[dataset['Date'] > pd.to_datetime(split) - timedelta(days=n_in)]
+    elif by == 'region':
+        training = dataset[np.logical_or.reduce([(dataset['region_{}'.format(i)] == 1) for i in split])]
+        test = dataset[np.logical_and.reduce([(dataset['region_{}'.format(i)] == 0) for i in split])]
+    elif by == 'country':
+        countries = list(dataset['CountryName'].unique())
+        random.shuffle(countries)
+        train_size = math.floor(len(countries) * split)
+
+        training = dataset[dataset['CountryName'].isin(countries[:train_size])]
+        test = dataset[dataset['CountryName'].isin(countries[train_size:])]
 
     return training, test
 
@@ -132,7 +150,7 @@ def normalize_features(dataset, scaler=None):
     Returns:
     normalizing scaler (sklearn.preprocessing.MinMaxScaler): a scaler that defines how to normalize the data
     '''
-    x_columns = []
+    x_columns = ['R']
     x_columns.extend(DEMOGRAPHY_COLUMNS)
     x_columns.extend(MOBILITY_COLUMNS)
     
@@ -143,6 +161,23 @@ def normalize_features(dataset, scaler=None):
         dataset[x_columns] = scaler.fit_transform(dataset[x_columns])
 
     return scaler
+
+
+def denormalize(y, scaler):
+    x_columns = ['R']
+    x_columns.extend(DEMOGRAPHY_COLUMNS)
+    x_columns.extend(MOBILITY_COLUMNS)
+
+    n_features = len(x_columns)
+
+    #get a matrix of the right shape for the scaler
+    m = np.zeros(shape = (y.shape[0] * y.shape[1], n_features))
+    #set the output values as a column
+    m[:,0] = y.reshape((y.shape[0] * y.shape[1],))
+    #apply scaler and get back the y column
+    inv_y = scaler.inverse_transform(m)[:,0]
+    #return the output in the right shape
+    return inv_y.reshape((y.shape[0], y.shape[1]))
 
 
 def reframe(dataset, n_in, n_out):
@@ -187,13 +222,31 @@ def train_model(train_X, train_Y, test_X, test_Y, n_out):
     model = Sequential()
     model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2])))
     model.add(Dense(n_out))
-    model.compile(loss='mae', optimizer='adam')
+    model.compile(loss='mse', optimizer='adam')
     # fit network
-    return model.fit(train_X, train_Y, epochs=50, batch_size=7, validation_data=(test_X, test_Y), verbose=2, shuffle=False)
+    history = model.fit(train_X, train_Y, epochs=50, batch_size=20, validation_data=(test_X, test_Y), verbose=2, shuffle=True)
 
-def draw_prediction(model):
-    pyplot.plot(model.history['loss'], label='train')
-    pyplot.plot(model.history['val_loss'], label='test')
+    return model, history
+
+
+def print_metrics(model, normalized_test_x, normalized_test_y, scaler, n_in, n_out, n_features):
+    normalized_pred_y = model.predict(normalized_test_x)
+
+    pred_y = denormalize(normalized_pred_y, scaler)
+    print(pred_y[10,:])
+    test_y = denormalize(normalized_test_y, scaler)
+    print(test_y[10,:])
+
+    print('r2_score:              {}'.format(r2_score(test_y, pred_y)))
+    print('mean_absolute_error:   {}'.format(mean_absolute_error(test_y, pred_y)))
+    print('mean_squared_error:    {}'.format(mean_squared_error(test_y, pred_y)))
+    print('median_absolute_error: {}'.format(median_absolute_error(test_y, pred_y)))
+    print('RMSE:                  {}'.format(np.sqrt(mean_absolute_error(test_y, pred_y))))
+
+
+def draw_prediction(history):
+    pyplot.plot(history.history['loss'], label='train')
+    pyplot.plot(history.history['val_loss'], label='test')
     pyplot.legend()
     pyplot.show()
 
@@ -207,13 +260,19 @@ if __name__ == '__main__':
     # we add one to account for R which is also a feature
     n_features = len(get_input_columns(raw_dataset)) + 1
 
-    raw_training_set, raw_test_set = split_dataset(raw_dataset, "2020-04-01")
+    #Date to split was selected to have a train:set ratio of about 80:20
+    raw_training_set, raw_test_set = split_dataset(raw_dataset, by='date', split="2020-04-10", n_in=n_in, n_out=n_out)
+
+    #Regions to split were selected to have a train:set ratio about 80:20
+    #raw_training_set, raw_test_set = split_dataset(raw_dataset, by='region', split=list(range(0, 7)))    
+
+    #With the countries, we simply select them randomly until we have for the initial dataset a spit of the row 80:20
+    #raw_training_set, raw_test_set = split_dataset(raw_dataset, by='country', split=0.8)    
 
     scaler = normalize_features(raw_training_set)
     training_set = reframe(raw_training_set, n_in, n_out)
     train_x, train_y = get_x_y(training_set, n_in, n_out, n_features)
 
-    # TODO: when computing values for test, use the historical data from the entire dataset
     scaler = normalize_features(raw_test_set, scaler)
     test_set = reframe(raw_test_set, n_in, n_out)
     test_x, test_y = get_x_y(test_set, n_in, n_out, n_features)
@@ -223,6 +282,9 @@ if __name__ == '__main__':
     print('shape test_x: ' + str(test_x.shape))
     print('shape test_y: ' + str(test_y.shape))
 
-    model = train_model(train_x, train_y, test_x, test_y, n_out)
+    print('ration train:test: {}:{}'.format(train_x.shape[0] / (train_x.shape[0] + test_x.shape[0]), test_x.shape[0] / (train_x.shape[0] + test_x.shape[0])))
 
-    draw_prediction(model)
+    model, history = train_model(train_x, train_y, test_x, test_y, n_out)
+
+    print_metrics(model, test_x, test_y, scaler, n_in, n_out, n_features)
+    draw_prediction(history)
