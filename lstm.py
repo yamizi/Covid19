@@ -220,11 +220,12 @@ def get_x_y(data, n_in, n_out, n_features):
 def train_model(train_X, train_Y, test_X, test_Y, n_out):
     # design network
     model = Sequential()
-    model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2])))
+    model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
+    model.add(LSTM(50))    
     model.add(Dense(n_out))
     model.compile(loss='mse', optimizer='adam')
     # fit network
-    history = model.fit(train_X, train_Y, epochs=50, batch_size=20, validation_data=(test_X, test_Y), verbose=2, shuffle=True)
+    history = model.fit(train_X, train_Y, epochs=150, batch_size=20, validation_data=(test_X, test_Y), verbose=2, shuffle=True)
 
     return model, history
 
@@ -233,9 +234,7 @@ def print_metrics(model, normalized_test_x, normalized_test_y, scaler, n_in, n_o
     normalized_pred_y = model.predict(normalized_test_x)
 
     pred_y = denormalize(normalized_pred_y, scaler)
-    print(pred_y[10,:])
     test_y = denormalize(normalized_test_y, scaler)
-    print(test_y[10,:])
 
     print('r2_score:              {}'.format(r2_score(test_y, pred_y)))
     print('mean_absolute_error:   {}'.format(mean_absolute_error(test_y, pred_y)))
@@ -261,13 +260,13 @@ if __name__ == '__main__':
     n_features = len(get_input_columns(raw_dataset)) + 1
 
     #Date to split was selected to have a train:set ratio of about 80:20
-    raw_training_set, raw_test_set = split_dataset(raw_dataset, by='date', split="2020-04-10", n_in=n_in, n_out=n_out)
+    #raw_training_set, raw_test_set = split_dataset(raw_dataset, by='date', split="2020-04-10", n_in=n_in, n_out=n_out)
 
     #Regions to split were selected to have a train:set ratio about 80:20
     #raw_training_set, raw_test_set = split_dataset(raw_dataset, by='region', split=list(range(0, 7)))    
 
     #With the countries, we simply select them randomly until we have for the initial dataset a spit of the row 80:20
-    #raw_training_set, raw_test_set = split_dataset(raw_dataset, by='country', split=0.8)    
+    raw_training_set, raw_test_set = split_dataset(raw_dataset, by='country', split=0.8)    
 
     scaler = normalize_features(raw_training_set)
     training_set = reframe(raw_training_set, n_in, n_out)
