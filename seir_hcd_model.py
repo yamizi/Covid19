@@ -45,8 +45,10 @@ dataset = dataset.drop(["Unnamed: 0"],axis=1)
 
 current_dataset_date = "v2_1"
 all_countries= pd.read_csv("datasets/v2_1_seirhcd.csv", parse_dates=['Date'])
+region = dataset["region"]
 dataset = pd.get_dummies(dataset,prefix="day_of_week", columns=["day_of_week"])
 dataset = pd.get_dummies(dataset,prefix="region", columns=["region"])
+dataset["region"] = region
 merged = pd.merge(all_countries.groupby(["CountryName","Date"]).agg("first"), dataset.groupby(["CountryName","Date"]).agg("first"),  on=["CountryName","Date"], how="inner")
 merged = merged.reset_index().dropna()
 print(merged.describe())
@@ -70,11 +72,13 @@ all_countries = merged["CountryName"].unique()
 X_train, y_train = non_country[columns], non_country["R"]
 X_test, y_test = country[columns], country["R"]
 
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(merged[columns], merged["R"], test_size=0.2, random_state=42)
+
 scaler = preprocessing.StandardScaler().fit(X_train)
 X_train_scaled = scaler.transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 print("train in {} elements, test on {} elements".format(X_train.shape,X_test.shape))
-print("min-max",X_train_scaled.min(axis=1),X_train_scaled.max(axis=1))
 
 from copy import deepcopy
 best_perf = -1
@@ -82,6 +86,18 @@ best_model = None
 search = False
 
 nb_iters = 1 if search else 5
+
+from sklearn.ensemble import GradientBoostingRegressor
+from utils.data_preparation import train_test_split_scaled, split_features_target
+
+#split by countries
+X_train_scaled, X_test_scaled, y_train, y_test, ref_train, ref_test = train_test_split_scaled(merged[columns], merged["R"], merged["R"], shuffle=False, by_regions=[7,8,9,10])
+
+clf = GradientBoostingRegressor(n_estimators=500, random_state=0)
+clf.fit(X_train_scaled,y_train.values)
+reports = metrics_report(X_test_scaled, y_test, clf)
+print(reports)
+exit()
 
 for i in range(nb_iters):
     print("Iter search {}".format(i))
