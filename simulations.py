@@ -29,7 +29,7 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
     params = ref_params
     #print("disease params", params, np.sum([params, ref_params], axis=1))
     # "decay_values"
-    params.append(False)
+    params.append(True)
 
 
     ref_data = df[df["Date"] == active_date + timedelta(days=-7)]
@@ -130,7 +130,10 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
              "SimulationCritical_max": y_pred_critic_max.astype(int),
              "SimulationDeaths_max": y_pred_deaths_max.astype(int),
              "SimulationInfectious_max": y_pred_infectious_max.astype(int)})
-        simulations_max["R_max"] = data['R_max'].iloc[1:].values
+
+        #print(simulations_max.shape, data['R_max'].iloc[1:].shape) 
+        vals = data['R_max'].iloc[1:].values
+        simulations_max["R_max"] = vals[:len(simulations_max)]
 
         for e in smoothing_columns:
             simulations_min["{}_min".format(e)] = simulations_min["{}_min".format(e)].rolling(3, 2,center=True).mean().astype(int)
@@ -224,7 +227,7 @@ def update_mean(df):
 
 
 def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, yvar, mlp_clf, scaler,
-             measure_values=None, lift_date_values=None, base_folder="./plots/simulations", seed="", confidence_interval=True, filter_output=None):
+             measure_values=None, lift_date_values=None, base_folder="./plots/simulations", seed="", confidence_interval=True, filter_output=None, return_measures=False):
     #print("Building simulation for ", measures_to_lift, df["CountryName"].unique())
 
     init_date = df["Date"].tail(1).dt.date.values[0]
@@ -250,7 +253,7 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
             # df[["S1_School closing", "S3_Cancel public events"
 
             measure_labels = [measures_translations.get(e,e) for e in measure_to_lift]
-            vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values
+            vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values[0]
 
             for i, measure in enumerate(measure_labels):
                 lift = current_date >= lift_date_values[i] if lift_date_values is not None and len(
@@ -263,6 +266,10 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
 
         country_lift = pd.get_dummies(country_lift, prefix="day_of_week", columns=["day_of_week"])
         country_lift = update_mean(country_lift.fillna(method="pad")).fillna(method="bfill")
+
+        if return_measures:
+            return country_lift
+
         X_lift = scaler.transform(country_lift[columns])
         y_lift = mlp_clf.predict(X_lift)
 
