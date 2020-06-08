@@ -12,16 +12,18 @@ from numpy import concatenate
 
 from sklearn import preprocessing
 from sklearn.metrics import mean_squared_log_error, mean_squared_error, r2_score, mean_absolute_error,median_absolute_error
+from sklearn.model_selection import GridSearchCV
 
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
+from keras.wrappers.scikit_learn import KerasRegressor
 
 from matplotlib import pyplot
 
 
 REGION_COLUMNS = ['region_{}'.format(i) for i in range(11)]
 TIME_COLUMNS = ['day_of_week_{}'.format(i) for i in range(7)]
-MOBILITY_COLUMNS = ["retail/recreation", "grocery/pharmacy", "parks", "transit_stations", "workplace"]
+MOBILITY_COLUMNS = ["retail/recreation", "grocery/pharmacy", "parks", "transit_stations", "workplace", "S1_School closing", "S7_International travel controls"]
 DEMOGRAPHY_COLUMNS = ["density", "population", "population_p14", "population_p65", "gdp", "area"]
 
 
@@ -44,18 +46,17 @@ def series_to_supervised(data, input_columns, output_columns, n_in=1, n_out=1, d
     selected_data = data[input_columns + output_columns]
     n_vars = selected_data.shape[1]
 
-    df = pd.DataFrame(selected_data)
     cols, names = list(), list()
 
     labels = ['input'] * len(input_columns) + ['output'] * len(output_columns)
 
     # input sequence (t-n, ... t-1)
     for i in range(n_in, 0, -1):
-        cols.append(df.shift(i))
+        cols.append(selected_data.shift(i))
         names += [('{}-{}(t-{})'.format(labels[j], j+1 if labels[j] == 'input' else j+1 - len(input_columns), i)) for j in range(n_vars)]
     # forecast sequence (t, t+1, ... t+n)
     for i in range(0, n_out):
-        cols.append(df.shift(-i))
+        cols.append(selected_data.shift(-i))
         if i == 0:
             names += [('{}-{}(t)'.format(labels[j], j+1 if labels[j] == 'input' else j+1 - len(input_columns))) for j in range(n_vars)]
         else:
@@ -63,15 +64,23 @@ def series_to_supervised(data, input_columns, output_columns, n_in=1, n_out=1, d
     # put it all together
     agg = pd.concat(cols, axis=1)
     agg.columns = names
+    
+    #clean columns
+    agg = agg.drop(get_passed_output_columns(agg.columns), axis=1)
+
     # drop rows with NaN values
     if dropnan:
         agg.dropna(inplace=True)
+
     return agg
 
 
 def get_future_output_columns(columns):
     return [column for column in columns if re.search(r'^output\-\d+\((t\+\d+|t)\)$', column)]
 
+def get_passed_output_columns(columns):
+    return [column for column in columns if re.search(r'^output\-\d+\(t\-\d+\)$', column)]
+    
 
 def get_input_columns(dataset):
     input_columns = list(dataset.columns)
@@ -92,12 +101,28 @@ def load_dataset():
     pandas.Dataframe: All the value for each day for each country.
     '''
 
+    #load all data
     google = pd.read_csv("./datasets/2020_04_23_google.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)
     countries = pd.read_csv("./datasets/seirhcd.csv", parse_dates=['Date'])
+    oxford = pd.read_excel("./datasets/OxCGRT_Download_latest_data.xlsx", sep=';')
 
+    #prepare google dataset
     google = pd.get_dummies(google,prefix="day_of_week", columns=["day_of_week"])
     google = pd.get_dummies(google,prefix="region", columns=["region"])
-    dataset = pd.merge(countries.groupby(["CountryName","Date"]).agg("first"), google.groupby(["CountryName","Date"]).agg("first"),  on=["CountryName","Date"], how="inner")
+    google_countries = pd.merge(countries, google, on=["CountryName","Date"], how="left")
+
+    #prepare oxford dataset
+    oxford['Date'] = pd.to_datetime(oxford['Date'], format='%Y%m%d')
+    oxford = oxford[["Date","CountryName","S1_School closing","S3_Cancel public events","S7_International travel controls"]]
+    oxford[["S1_School closing","S3_Cancel public events","S7_International travel controls"]] = oxford[["S1_School closing","S3_Cancel public events","S7_International travel controls"]].fillna(method="ffill").fillna(method="bfill") 
+    oxford[["S1_School closing","S3_Cancel public events"]] = oxford[["S1_School closing","S3_Cancel public events"]] * -50
+    oxford[["S7_International travel controls"]] = oxford[["S7_International travel controls"]] * -33
+    oxford[["S1_School closing","S3_Cancel public events","S7_International travel controls"]] = oxford[["S1_School closing","S3_Cancel public events","S7_International travel controls"]].rolling(15,14).mean()
+
+    #merge google and oxford datasets
+    dataset = pd.merge(google_countries, oxford, on=["CountryName","Date"], how="left")
+    dataset = dataset.fillna(method="ffill")
+    dataset = dataset[dataset["Date"]<pd.to_datetime("2020-04-12",yearfirst=True)]
     dataset = dataset.reset_index().dropna()
 
     columns = ['R', 'CountryName', 'Date']
@@ -150,34 +175,17 @@ def normalize_features(dataset, scaler=None):
     Returns:
     normalizing scaler (sklearn.preprocessing.MinMaxScaler): a scaler that defines how to normalize the data
     '''
-    x_columns = ['R']
+    x_columns = []
     x_columns.extend(DEMOGRAPHY_COLUMNS)
     x_columns.extend(MOBILITY_COLUMNS)
     
     if scaler:
         dataset[x_columns] = scaler.transform(dataset[x_columns])
     else:
-        scaler = preprocessing.MinMaxScaler()
+        scaler = preprocessing.StandardScaler()
         dataset[x_columns] = scaler.fit_transform(dataset[x_columns])
 
     return scaler
-
-
-def denormalize(y, scaler):
-    x_columns = ['R']
-    x_columns.extend(DEMOGRAPHY_COLUMNS)
-    x_columns.extend(MOBILITY_COLUMNS)
-
-    n_features = len(x_columns)
-
-    #get a matrix of the right shape for the scaler
-    m = np.zeros(shape = (y.shape[0] * y.shape[1], n_features))
-    #set the output values as a column
-    m[:,0] = y.reshape((y.shape[0] * y.shape[1],))
-    #apply scaler and get back the y column
-    inv_y = scaler.inverse_transform(m)[:,0]
-    #return the output in the right shape
-    return inv_y.reshape((y.shape[0], y.shape[1]))
 
 
 def reframe(dataset, n_in, n_out):
@@ -205,10 +213,9 @@ def get_x_y(data, n_in, n_out, n_features):
     Extract X and Y matrices from the dataset
     '''
 
-    y_columns = get_future_output_columns(data)
+    y_columns = get_future_output_columns(data.columns)
 
-    data_x = data.copy()
-    data_x[y_columns] = 0
+    data_x = data.drop(y_columns, axis=1)
     data_x = data_x.values
     data_x = data_x.reshape(data_x.shape[0], n_in + n_out, n_features)
 
@@ -217,24 +224,47 @@ def get_x_y(data, n_in, n_out, n_features):
     return data_x, data_y
     
 
-def train_model(train_X, train_Y, test_X, test_Y, n_out):
-    # design network
+def create_model(n_in=None, n_out=None, n_features=None):
+    if not n_in or not n_out or not n_features:
+        raise SystemExit('Invalid arguemnts to create the model')
+    
     model = Sequential()
-    model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
-    model.add(LSTM(50))    
+    model.add(LSTM(20, input_shape=(n_in, n_features)))
     model.add(Dense(n_out))
     model.compile(loss='mse', optimizer='adam')
+
+    return model
+
+
+def find_best_model(X, Y, n_out):
+    estimator = KerasRegressor(build_fn=create_model, n_in=X.shape[1], n_out=n_out, n_features=X.shape[2], verbose=2)
+
+    batch_size = [size for size in range(10, 50, 5)]
+    epochs = [100]
+    param_grid = dict(batch_size=batch_size, epochs=epochs)
+
+    grid = GridSearchCV(estimator=estimator, param_grid=param_grid)
+    grid_results = grid.fit(X, Y)
+
+    print("Best parameters set found on development set:")
+    print()
+    print(grid_results.best_params_)
+
+    return grid_results.best_estimator_
+
+
+def train_model(train_X, train_Y, test_X, test_Y, n_out):
+    # design network
+    model = create_model(n_in=train_X.shape[1], n_out=n_out, n_features=train_X.shape[2])
     # fit network
-    history = model.fit(train_X, train_Y, epochs=150, batch_size=20, validation_data=(test_X, test_Y), verbose=2, shuffle=True)
+    history = model.fit(train_X, train_Y, epochs=200, batch_size=30, validation_data=(test_X, test_Y), verbose=2, shuffle=True)
+    draw_prediction(history)
 
-    return model, history
+    return model
 
 
-def print_metrics(model, normalized_test_x, normalized_test_y, scaler, n_in, n_out, n_features):
-    normalized_pred_y = model.predict(normalized_test_x)
-
-    pred_y = denormalize(normalized_pred_y, scaler)
-    test_y = denormalize(normalized_test_y, scaler)
+def print_metrics(model, test_x, test_y):
+    pred_y = model.predict(test_x)
 
     print('r2_score:              {}'.format(r2_score(test_y, pred_y)))
     print('mean_absolute_error:   {}'.format(mean_absolute_error(test_y, pred_y)))
@@ -254,16 +284,15 @@ if __name__ == '__main__':
     raw_dataset = load_dataset()
 
     n_in = 15
-    n_out = 7
+    n_out = 1
 
-    # we add one to account for R which is also a feature
-    n_features = len(get_input_columns(raw_dataset)) + 1
+    n_features = len(get_input_columns(raw_dataset))
 
     #Date to split was selected to have a train:set ratio of about 80:20
-    raw_training_set, raw_test_set = split_dataset(raw_dataset, by='date', split="2020-04-10", n_in=n_in, n_out=n_out)
+    raw_training_set, raw_test_set = split_dataset(raw_dataset, by='date', split="2020-04-05", n_in=n_in, n_out=n_out)
 
     #Regions to split were selected to have a train:set ratio about 80:20
-    raw_training_set, raw_test_set = split_dataset(raw_dataset, by='region', split=list(range(0, 7)))    
+    #raw_training_set, raw_test_set = split_dataset(raw_dataset, by='region', split=list(range(0, 7)))    
 
     #With the countries, we simply select them randomly until we have for the initial dataset a spit of the row 80:20
     #raw_training_set, raw_test_set = split_dataset(raw_dataset, by='country', split=0.8)    
@@ -272,7 +301,7 @@ if __name__ == '__main__':
     training_set = reframe(raw_training_set, n_in, n_out)
     train_x, train_y = get_x_y(training_set, n_in, n_out, n_features)
 
-    scaler = normalize_features(raw_test_set, scaler)
+    normalize_features(raw_test_set, scaler)
     test_set = reframe(raw_test_set, n_in, n_out)
     test_x, test_y = get_x_y(test_set, n_in, n_out, n_features)
 
@@ -283,7 +312,7 @@ if __name__ == '__main__':
 
     print('ration train:test: {}:{}'.format(train_x.shape[0] / (train_x.shape[0] + test_x.shape[0]), test_x.shape[0] / (train_x.shape[0] + test_x.shape[0])))
 
-    model, history = train_model(train_x, train_y, test_x, test_y, n_out)
+    #model = find_best_model(train_x, train_y, n_out)
 
-    print_metrics(model, test_x, test_y, scaler, n_in, n_out, n_features)
-    draw_prediction(history)
+    model = train_model(train_x, train_y, test_x, test_y, n_out)
+    print_metrics(model, test_x, test_y)

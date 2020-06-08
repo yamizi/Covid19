@@ -1,21 +1,37 @@
 import pandas as pd
-from seir_hcd_simulations import scaler, yvar, merged, mlp_clf, columns
-from simulations import simulate
+import numpy as np
 import experiments_utils as utils
 import time
+import data_visualization
 
-MEASURES = ['grocery/pharmacy', 'workplace', 'S1_School closing', 'parks', 'transit_stations', 'retail/recreation', 'S7_International travel controls']
+from seir_hcd_simulations import scaler, yvar, merged, mlp_clf, columns
+from simulations import simulate
+from sklearn import metrics
+
+MEASURES = ['residential', 'workplace', 'parks', 'transit_stations', 'retail/recreation', 'grocery/pharmacy',]
 
 
 def get_no_lockdown(country):
-    return list(map(lambda x: max(x, 0), get_initial_lockdown(country)))
+    no_lockdown = list(map(lambda x: max(x, 0), get_initial_lockdown(country)))
+    #put it if you want to say that during no lockdown activity is at 100% and not over 100%
+    #no_lockdown[0] = 0
+
+    return no_lockdown
 
 
 def get_initial_lockdown(country):
     initial = utils.FEATURES_VALUES.loc[(utils.FEATURES_VALUES['CountryName'] == country)]
     initial = initial.loc[initial['Date'].idxmax()]
-    return [initial['grocery/pharmacy_15days'], initial['workplace_15days'], initial['S1_School closing'], initial['parks_15days'], initial['transit_stations_15days'], initial['retail/recreation_15days'], initial['S7_International travel controls']]
+    return [initial['residential_15days'], initial['workplace_15days'], initial['parks_15days'], initial['transit_stations_15days'], initial['retail/recreation_15days'], initial['grocery/pharmacy_15days']]
 
+
+def update_soft_exit(index, value, step):
+    #put it if you want to say that during no lockdown activity is at 100% and not over 100%
+    #if index == 0:
+    #    return min(value, max(0, value - abs(value * 0.13 * (step + 1))))
+
+    return max(value, min(0, value + abs(value * 0.13 * (step + 1))))
+    
 
 def create_measures(n):
     measures = []
@@ -43,11 +59,13 @@ def create_hard_exit(country):
 
 def create_soft_exit(country):
     dates = ['2020-05-11', '2020-05-25', '2020-06-08', '2020-06-22', '2020-07-06', '2020-07-20', '2020-08-03', '2020-08-17']
+    # monthly cycles instead of every 2 weeks
+    #dates = ['2020-05-11', '2020-06-08', '2020-07-06', '2020-08-03', '2020-08-31']
 
     measures = []
     initial = get_initial_lockdown(country)
     for i in range(len(dates)):
-        measures.extend([max(e, min(0, e + abs(e * 0.13 * (i + 1)))) for e in initial])
+        measures.extend([update_soft_exit(index, e, i) for index, e in enumerate(initial)])
 
     return (dates, measures)
 
@@ -95,8 +113,6 @@ def build_parameters(country, scenario):
     parameters = get_scenario(country, scenario)
 
     print('Run for {} with {}\n'.format(country, scenario))
-    print(parameters)
-    print('\n')
 
     parameters['measure_dates'] = [pd.to_datetime(d) for d in parameters['measure_dates']]
     parameters['country_df'] = merged[merged["CountryName"]==country]
@@ -105,20 +121,25 @@ def build_parameters(country, scenario):
 
 
 def run_simulation(countries, scenarios):
-    end_date = pd.to_datetime("2020-9-11")
+    end_date = pd.to_datetime("2020-9-30")
 
     results = pd.DataFrame()
+    calendar = pd.DataFrame()
 
     for country in countries:
         for scenario in scenarios:
             parameters = build_parameters(country, scenario)
 
-            df = simulate(parameters['country_df'], [parameters['measures_to_lift'],],0,end_date,None,columns,yvar, mlp_clf, scaler,measure_values=parameters['measure_values'],base_folder=None, lift_date_values=parameters['measure_dates'])
-            df['Scenario'] = scenario
-            df['Country'] = country
-            results = results.append(df, ignore_index = True)
+            simulation_country, calendar_country = simulate(parameters['country_df'], [parameters['measures_to_lift'],],0,end_date,None,columns,yvar, mlp_clf, scaler,measure_values=parameters['measure_values'],base_folder=None, lift_date_values=parameters['measure_dates'])
             
-    return results
+            simulation_country['Scenario'] = scenario
+            simulation_country['Country'] = country
+            results = results.append(simulation_country, ignore_index = True)
+            
+            calendar_country['Scenario'] = scenario
+            calendar = calendar.append(calendar_country, ignore_index = True)
+            
+    return results, calendar
 
 
 def get_min_max(date, country, scenario, column, df, min_max):
@@ -136,7 +157,7 @@ def prepare_dataframe_for_seaborn(data):
 
     return melted
 
-def draw_plots(raw_data):
+def draw_results(raw_data):
     data = prepare_dataframe_for_seaborn(raw_data)
 
     for country in data['Country'].unique():
@@ -145,7 +166,28 @@ def draw_plots(raw_data):
             name = 'scenarios_{}_{}'.format(country, population)
 
             legend_pos = None if not country == 'Italy' else 'best'
-            utils.lineplot(data_to_draw, name, 'Date', 'Value', 'Number of habitants', hue='Scenario', show_error=False, legend_pos=legend_pos)
+            utils.plot('line', data_to_draw, name, 'Date', 'Value', 'Rt', hue='Scenario', show_error=False, legend_pos=legend_pos)
+
+
+def draw_mobility(calendar, countries):
+    for scenario in calendar['Scenario'].unique():
+        data_visualization.draw_mobility(calendar.loc[calendar['Scenario'] == scenario], countries, 'mobility_{}_'.format(scenario))
+
+
+def compute_AUC(column):
+    return metrics.auc(np.arange(column.shape[0]), column.values)
+
+
+def print_AUC(calendar):
+    results = calendar.drop(columns=['residential']).groupby(['Scenario', 'CountryName']).agg([('AUC', compute_AUC),])
+    print(results)
+
+    mean_results = results.mean(axis=1, level=1, numeric_only=True)
+    print(mean_results)
+
+def print_simulation_info(simulation):
+    results = simulation[['Scenario', 'Country', 'SimulationDeaths']].groupby(['Scenario', 'Country']).agg(['max'])
+    print(results)
 
 if __name__ == '__main__':
     t_start = time.perf_counter()
@@ -154,8 +196,12 @@ if __name__ == '__main__':
     countries = ['Japan', 'Luxembourg', 'Italy']
     scenarios = ['hard exit', 'no exit', 'progressive exit', 'cyclic exit']
 
-    simulation = run_simulation(countries, scenarios)
-    draw_plots(simulation)
+    simulation, calendar = run_simulation(countries, scenarios)
+    
+    draw_results(simulation)
+    draw_mobility(calendar, countries)
+    print_AUC(calendar)
+    print_simulation_info(simulation)
 
     t_stop = time.perf_counter()
 

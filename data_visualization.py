@@ -6,7 +6,9 @@ import pandas as pd
 def pretty_name(x):
     measure = x['Measures']
     
-    if measure == 'grocery/pharmacy':
+    if measure == 'residential':
+        return 'Residential'
+    elif measure == 'grocery/pharmacy':
         return 'Grocery & Pharmacies'
     elif measure == 'workplace':
         return 'Workplace'
@@ -21,14 +23,14 @@ def pretty_name(x):
     elif measure == 'S7_International travel controls':
         return 'International Travels'
 
-def draw_mobility(countries):
+def draw_mobility(data, countries, prefix='mobility_'):
     #value_vars = ['grocery/pharmacy', 'workplace', 'S1_School closing', 'parks', 'transit_stations', 'retail/recreation', 'S7_International travel controls']
-    value_vars = ['grocery/pharmacy', 'workplace', 'parks', 'transit_stations', 'retail/recreation']
-    data = utils.FEATURES_VALUES.melt(id_vars=['Date', 'CountryName'], value_vars=value_vars, var_name='Measures', value_name="Value")
+    value_vars = ['workplace', 'transit_stations', 'grocery/pharmacy', 'parks', 'retail/recreation', 'residential']
+    data = data.melt(id_vars=['Date', 'CountryName'], value_vars=value_vars, var_name='Measures', value_name='Value')
     data['Measures'] = data.apply(pretty_name, axis=1)
 
     for country in countries:
-        utils.plot('line', data.loc[data['CountryName'] == country], 'mobility_' + country, 'Date', 'Value', 'Variation of activity [%]', hue='Measures', legend_pos=None)
+        utils.plot('line', data.loc[data['CountryName'] == country], prefix + country, 'Date', 'Value', 'Variation of activity [%]', hue='Measures', legend_pos=None)
 
 
 def draw_death_rate(countries):
@@ -54,9 +56,9 @@ if __name__ == '__main__':
 
     countries = ['Belgium', 'France', 'Germany', 'Greece', 'Italy', 'Latvia', 'Luxembourg', 'Netherlands', 'Spain', 'Switzerland', 'Brazil', 'Cameroon', 'Canada', 'Japan', 'United Kingdom']
 
-    #draw_mobility(countries)
+    draw_mobility(utils.FEATURES_VALUES, countries)
     #draw_death_rate(countries)
-    draw_death_over_mobility(countries)
+    #draw_death_over_mobility(countries)
 
     t_stop = time.perf_counter()
 

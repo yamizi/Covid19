@@ -60,7 +60,7 @@ def update_seir(df, active_date, e_date, folder=None, l_date=None, confidence_in
         if param in cols:
             params[i] = data[param].mean()
     #params = ref_params
-    print("disease params", params, np.sum([params, ref_params],axis=1))
+    #print("disease params", params, np.sum([params, ref_params],axis=1))
     #"decay_values"
     params.append(True)
     R_t = data['R'].values
@@ -237,7 +237,7 @@ def update_mean(df):
 
 def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, yvar, mlp_clf, scaler,
              measure_values=None, lift_date_values=None, base_folder="./plots/simulations", seed=""):
-    print("Building simulation for ", measures_to_lift, df["CountryName"].unique())
+    #print("Building simulation for ", measures_to_lift, df["CountryName"].unique())
 
     init_date = df["Date"].tail(1).dt.date.values[0]
 
@@ -302,9 +302,13 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
             fig_R.clf()
             plt.close("all")
 
+    
+    calendar = country_lift[['CountryName', 'Date', 'workplace', 'transit_stations', 'grocery/pharmacy', 'parks', 'retail/recreation', 'residential']]
+    calendar = calendar.loc[calendar['Date'] > init_date].copy()
+
     country_lift = update_seir(country_lift, init_date, end_date, folder)
 
-    return country_lift
+    return country_lift, calendar
 
 def simulate_constantRt(df, end_date):
 
