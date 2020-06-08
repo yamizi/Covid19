@@ -1,18 +1,14 @@
-
-import sys, getopt
+import sys
 sys.path.append("./")
 
 import numpy as np
 import pandas as pd
 import json
 from datetime import datetime, timedelta
-from sklearn.externals import joblib
-from simulations import simulate
+from model_run import simulate
 from sklearn.metrics import auc
 
 import matplotlib.pyplot as plt
-
-df_objectives = pd.DataFrame(data=[], columns=["country","deaths","activity"])
 
 countries = ["Italy","Japan","Luxembourg"]
 criticals = [2054, 1822, 42]
@@ -58,10 +54,7 @@ for k, country in enumerate(countries):
     deaths = np.array(objectives.get("deaths"),np.int32)
     activity = np.array(objectives.get("activity"),np.float)
 
-    min_death = deaths > 0 #country_df["ConfirmedDeaths"].max()
-    #deaths = deaths[min_death]
-    #activity = activity[min_death]
-    df_objectives = df_objectives.append(pd.DataFrame({"country":[country]*len(deaths),"deaths":deaths,"activity":activity}))
+    min_death = deaths > country_df["ConfirmedDeaths"].max()
 
     
     costs =np.column_stack((deaths, activity)) #np.concatenate([[deaths], [activity]], axis=0)
@@ -115,8 +108,6 @@ for k, country in enumerate(countries):
         metrics.append(str(deaths[i]))
         metrics.append(str(criticals[k]))    
         print(" & ".join(metrics))
-        #for feature in features:
-        #    pop[feature] = res[feature]
             
         pop.index = pop.index.astype(int)
         pop.sort_index(inplace=True)
@@ -128,9 +119,7 @@ for k, country in enumerate(countries):
     
     plt.figure()
     populations[selection].groupby("scenario")["SimulationDeaths"].plot(legend=True, title="Deaths for scenarios at last iteration for {}".format(country))
-    #plt.figure()
-    #populations[populations["scenario"]==0]["SimulationDeaths"].plot()
-    #print(populations[populations["scenario"]==0]["SimulationDeaths"].head())
+
 
 plt.show()
 

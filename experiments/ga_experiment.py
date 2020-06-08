@@ -45,7 +45,6 @@ def run(countryname, capacity):
 
     with open("./experiments/ga_{}_lastpop.json".format(countryname), 'w') as f:
         json.dump( {"df":[e.to_dict() for e in problem.last[0]],"x":problem.last[1].tolist()}, f)
-        #{"df":[e.to_dict() for e in self.last[0]],"x":self.last[1]}, f)
 
     with open("./experiments/ga_{}_lastobj.json".format(countryname), 'w') as f:
         json.dump( {"deaths": problem.last_objectives[0].tolist(), "activity":problem.last_objectives[1].tolist()} , f)

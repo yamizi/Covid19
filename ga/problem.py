@@ -1,11 +1,10 @@
 import numpy as np
 from pymoo.model.problem import Problem
-
 import pandas as pd
 import json, time, os
 from datetime import datetime, timedelta
 from sklearn.externals import joblib
-from simulations import simulate
+from model_run import simulate
 
 class ScheduleProblem(Problem):
 
@@ -97,8 +96,7 @@ class ScheduleProblem(Problem):
             with open("{}/obj_{}.json".format(self.record_path, self.iteration), 'w') as f:
                 json.dump( {"deaths": f1.tolist(), "activity":f2.tolist()} , f)
 
-            
-            
+
 
         g1 = np.array([e["SimulationCritical_max"].max() for e in res]) - self.critical_capacity
 
@@ -111,13 +109,13 @@ class ScheduleProblem(Problem):
 
 
     # --------------------------------------------------
-    # Pareto-front - not necessary but used for plotting
+    # Pareto-front - not necessary but could be used for plotting
     # --------------------------------------------------
     def _calc_pareto_front(self, flatten=True, **kwargs):
         pass
 
     # --------------------------------------------------
-    # Pareto-set - not necessary but used for plotting
+    # Pareto-set - not necessary but could be used for plotting
     # --------------------------------------------------
     def _calc_pareto_set(self, flatten=True, **kwargs):
         pass
