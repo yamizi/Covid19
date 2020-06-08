@@ -1,5 +1,5 @@
 import json, utils, joblib
-from utils import seir
+from helpers import seir
 import pandas as pd
 import numpy as np
 
