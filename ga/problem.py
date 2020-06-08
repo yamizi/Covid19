@@ -1,20 +1,20 @@
 import numpy as np
-from pymoo.util.misc import stack
 from pymoo.model.problem import Problem
 
 import pandas as pd
-import json, time
+import json, time, os
 from datetime import datetime, timedelta
 from sklearn.externals import joblib
 from simulations import simulate
 
 class ScheduleProblem(Problem):
 
-    def __init__(self, version="v2_1",begin_date="2020-04-30",end_date="2020-09-30",country_name = "Luxembourg", critical_capacity=90, step=14):
+    def __init__(self, version="v2_1",begin_date="2020-04-30",end_date="2020-09-30",country_name = "Luxembourg", critical_capacity=90, step=14, record_all=False):
 
         folder = "./models/seirhcd/{}".format(version)
         self.scaler = joblib.load("{}/scaler.save".format(folder))
         self.mlp_clf = joblib.load("{}/mlp.save".format(folder))
+        self.country_name = country_name
         merged = pd.read_csv("{}/features.csv".format(folder), parse_dates=["Date"])
         country_df = merged[merged["CountryName"] == country_name]
 
@@ -47,6 +47,13 @@ class ScheduleProblem(Problem):
         nb_var = len(self.measures_dates)
 
         self.last = []
+        self.last_objectives = []
+        self.iteration = 0
+        self.record_all = record_all
+
+        if record_all:
+            self.record_path = "./experiments/ga_steps/{}".format(country_name)
+            os.makedirs(self.record_path,exist_ok=True)
 
         super().__init__(n_var=nb_var,
                          n_obj=2,
@@ -64,44 +71,54 @@ class ScheduleProblem(Problem):
         begin= time.time()
         res = simulate(self.df.copy(), [measures_to_lift]*len(x), 0, self.end_date, None, self.columns, self.yvar, self.mlp_clf, self.scaler,
                            measure_values=x, base_folder=None, lift_date_values=lift_date_values,
-                           seed="", filter_output=["R","SimulationCritical","SimulationDeaths"], confidence_interval=False)
+                           seed="", filter_output=["R_max","R","SimulationCritical_max","SimulationDeaths_max"], confidence_interval=True)
         end = time.time()
 
         # f1 minimize the deaths
         # f2 maximize the activity (maximize x values => minimize the absolute value of f2)
-        f1 = np.array([e["SimulationDeaths"].tail(1).values[0] for e in res])
+        f1 = np.array([e["SimulationDeaths_max"].tail(1).values[0] for e in res])
         f2 = np.abs(x.mean(axis=1))
-        self.last = res
-        print(end-begin,f1, f2)
+        self.last = [res, x]
+        self.last_objectives = [f1, f2]
+        #print(end-begin,f1, f2)
 
-        g1 = np.array([e["SimulationCritical"].max() for e in res]) - self.critical_capacity
+        with open("./experiments/ga_{}_temppop.json".format(self.country_name), 'w') as f:
+            json.dump( {"df":[e.to_dict() for e in res],"x":x.tolist()}, f)
 
-        #f1 = (f1-self.initial_deaths)/self.initial_deaths
-        #f2 = f2/100
+        with open("./experiments/ga_{}_tempobj.json".format(self.country_name), 'w') as f:
+            json.dump( {"deaths": f1.tolist(), "activity":f2.tolist()} , f)
+
+
+        if self.record_all:
+
+            with open("{}/pop_{}.json".format(self.record_path, self.iteration), 'w') as f:
+                json.dump( {"df":[e.to_dict() for e in res],"x":x.tolist()}, f)
+
+            with open("{}/obj_{}.json".format(self.record_path, self.iteration), 'w') as f:
+                json.dump( {"deaths": f1.tolist(), "activity":f2.tolist()} , f)
+
+            
+            
+
+        g1 = np.array([e["SimulationCritical_max"].max() for e in res]) - self.critical_capacity
+
+        f1 = (f1-self.initial_deaths)/self.initial_deaths
+        f2 = f2/100
         out["F"] = np.column_stack([np.abs(f1), f2])
         out["G"] = np.column_stack([g1])
+
+        self.iteration = self.iteration +1
 
 
     # --------------------------------------------------
     # Pareto-front - not necessary but used for plotting
     # --------------------------------------------------
     def _calc_pareto_front(self, flatten=True, **kwargs):
-        f1_a = np.linspace(0.1**2, 0.4**2, 100)
-        f2_a = (np.sqrt(f1_a) - 1)**2
-
-        f1_b = np.linspace(0.6**2, 0.9**2, 100)
-        f2_b = (np.sqrt(f1_b) - 1)**2
-
-        a, b = np.column_stack([f1_a, f2_a]), np.column_stack([f1_b, f2_b])
-        return stack(a, b, flatten=flatten)
+        pass
 
     # --------------------------------------------------
     # Pareto-set - not necessary but used for plotting
     # --------------------------------------------------
     def _calc_pareto_set(self, flatten=True, **kwargs):
-        x1_a = np.linspace(0.1, 0.4, 50)
-        x1_b = np.linspace(0.6, 0.9, 50)
-        x2 = np.zeros(50)
+        pass
 
-        a, b = np.column_stack([x1_a, x2]), np.column_stack([x1_b, x2])
-        return stack(a,b, flatten=flatten)

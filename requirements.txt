@@ -4,8 +4,6 @@ flask-cors==3.0.8
 Flask==1.0.2
 gunicorn==19.9.0
 google-cloud-storage
-numpy
 scipy==1.4.1
 scikit-learn==0.22.1
-gcsfs
-pymoo
+pymoo==0.4.1

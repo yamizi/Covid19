@@ -2,3 +2,5 @@
 *.pyc
 .vscode/*
 plots/*
+experiments/*.png
+experiments/*.json
