@@ -1,9 +1,9 @@
-import os, json, random, seir, utils, joblib
+import json, utils, joblib
+from utils import seir
 import pandas as pd
 import numpy as np
 
-from pathlib import Path
-from datetime import timedelta, datetime, date
+from datetime import timedelta, datetime
 from scipy.integrate import solve_ivp
 
 

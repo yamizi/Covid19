@@ -1,9 +1,41 @@
 import time, utils
 import pandas as pd
-
+import matplotlib.pyplot as plt
 
 FEATURES_VALUES = utils.features_values()
 
+
+def plot_model_results(y_pred, train_data, valid_data=None):
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(48, 10))
+
+    ax1.set_title('Confirmed Cases')
+    ax2.set_title('Fatalities')
+
+    train_data['ConfirmedCases'].plot(label='Confirmed Cases (train)', color='g', ax=ax1)
+    y_pred.loc[train_data.index, 'ConfirmedCases'].plot(label='Modeled Cases', color='r', ax=ax1)
+    ax4 = y_pred['R'].plot(label='Reproduction number', color='c', linestyle='-', secondary_y=True, ax=ax1)
+    ax4.set_ylabel("Reproduction number", fontsize=10, color='c');
+
+    train_data['Fatalities'].plot(label='Fatalities (train)', color='g', ax=ax2)
+    y_pred.loc[train_data.index, 'Fatalities'].plot(label='Modeled Fatalities', color='r', ax=ax2)
+
+    if valid_data is not None:
+        valid_data['ConfirmedCases'].plot(label='Confirmed Cases (valid)', color='g', linestyle=':', ax=ax1)
+        valid_data['Fatalities'].plot(label='Fatalities (valid)', color='g', linestyle=':', ax=ax2)
+        y_pred.loc[valid_data.index, 'ConfirmedCases'].plot(label='Modeled Cases (forecast)', color='r', linestyle=':',
+                                                            ax=ax1)
+        y_pred.loc[valid_data.index, 'Fatalities'].plot(label='Modeled Fatalities (forecast)', color='r', linestyle=':',
+                                                        ax=ax2)
+    else:
+        y_pred.loc[:, 'ConfirmedCases'].plot(label='Modeled Cases (forecast)', color='r', linestyle=':', ax=ax1)
+        y_pred.loc[:, 'Fatalities'].plot(label='Modeled Fatalities (forecast)', color='r', linestyle=':', ax=ax2)
+
+        y_pred.loc[:, 'HospitalizedCases'].plot(label='Modeled Hospitalizations (forecast)', color='b', ax=ax3)
+        y_pred.loc[:, 'CriticalCases'].plot(label='Modeled Critical (forecast)', color='r', linestyle=':', ax=ax3)
+        ax3.set_title('Hospitalizations & Criticals')
+        ax3.legend(loc='best')
+
+    ax1.legend(loc='best')
 
 def pretty_name(x):
     measure = x['Measures']
