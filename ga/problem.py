@@ -8,11 +8,9 @@ from model_run import simulate
 
 class ScheduleProblem(Problem):
 
-    def __init__(self, version="v2_1",begin_date="2020-04-30",end_date="2020-09-30",country_name = "Luxembourg", critical_capacity=90, step=14, record_all=False):
+    def __init__(self, begin_date="2020-04-30",end_date="2020-09-30",country_name = "Luxembourg", critical_capacity=90, step=14, record_all=False):
 
-        folder = "./models/seirhcd/{}".format(version)
-        self.scaler = joblib.load("{}/scaler.save".format(folder))
-        self.mlp_clf = joblib.load("{}/mlp.save".format(folder))
+        folder = "data"
         self.country_name = country_name
         merged = pd.read_csv("{}/features.csv".format(folder), parse_dates=["Date"])
         country_df = merged[merged["CountryName"] == country_name]
@@ -27,11 +25,6 @@ class ScheduleProblem(Problem):
             country_sub = country_df
 
         self.df = country_sub
-
-        with open('{}/metrics.json'.format(folder)) as fp:
-            metrics = json.load(fp)
-            self.yvar = np.power(metrics["std_test"], 0.5)
-            self.columns = metrics["columns"]
 
         features = ["workplace",
             "parks",
@@ -68,9 +61,8 @@ class ScheduleProblem(Problem):
         lift_date_values = [pd.to_datetime(d) for d in dates]
 
         begin= time.time()
-        res = simulate(self.df.copy(), [measures_to_lift]*len(x), 0, self.end_date, None, self.columns, self.yvar, self.mlp_clf, self.scaler,
-                           measure_values=x, base_folder=None, lift_date_values=lift_date_values,
-                           seed="", filter_output=["R_max","R","SimulationCritical_max","SimulationDeaths_max"], confidence_interval=True)
+        res = simulate(self.df.copy(), [measures_to_lift]*len(x), 0, self.end_date, None,
+                           measure_values=x, lift_date_values=lift_date_values, seed="")
         end = time.time()
 
         # f1 minimize the deaths
