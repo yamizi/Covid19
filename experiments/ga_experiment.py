@@ -16,7 +16,7 @@ from pymoo.visualization.scatter import Scatter
 countryname = "Luxembourg"
 capacity = 42
 
-countryname, capacity = "France", 1980
+#countryname, capacity = "France", 1980
 
 problem = ScheduleProblem(country_name=countryname, critical_capacity=capacity)
 

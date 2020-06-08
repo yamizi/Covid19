@@ -21,7 +21,6 @@ from sklearn import preprocessing
 from sklearn.neural_network import MLPRegressor
 
 from utils.helpers import metrics_report
-from simulations import features, periods
 country_name = "Luxembourg"
 
 
