@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 from sklearn.metrics import mean_squared_log_error
 from data_visualization import plot_model_results
 
-from utils.seir import model
+from helpers.seir import model
 
 OPTIM_DAYS = 60  # Number of days to use for the optimisation evaluation
 
@@ -32,7 +32,8 @@ def eval_model_decay(params, data, population, return_solution=False, forecast_d
     y_pred_cases = np.clip(inf + rec + hosp + crit + deaths, 0, np.inf) * population
     y_true_cases = data['ConfirmedCases'].values
     y_pred_fat = np.clip(deaths, 0, np.inf) * population
-    y_true_fat = data['Fatalities'].values
+
+    y_true_fat = data['ConfirmedDeaths'].values
 
     optim_days = min(OPTIM_DAYS, len(data))  # Days to optimise for
     weights = 1 / np.arange(1, optim_days + 1)[::-1]  # Recent data is more heavily weighted
@@ -54,13 +55,11 @@ def fit_model(area_name,df, population,
                       (0.5, 10), (2, 20),  # transition time param bounds
                       (0.5, 1), (0, 1), (0, 1), (1, 5), (1, 100)),  # fraction time param bounds
               make_plot=True, pred_days=7):
-    train_data = df.loc[area_name].query('ConfirmedCases > 0')
-    begin = df.loc[area_name].query('ConfirmedCases > 0').index[-1]
+    train_data = df[(df["CountryName"]==area_name) & (df['ConfirmedCases'] >0)]
+
+    begin = train_data.index[-1]
     test_index = pd.date_range(start=begin, periods=pred_days)
     dates_all = train_data.index.append(test_index)
-
-    cases_per_million = train_data['ConfirmedCases'].max() * 10 ** 6 / population
-    n_infected = train_data['ConfirmedCases'].iloc[0]
 
     res_decay = minimize(eval_model_decay, initial_guess, bounds=bounds,
                          args=(train_data, population, False),
