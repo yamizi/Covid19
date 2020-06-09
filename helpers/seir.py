@@ -20,7 +20,7 @@ These constants are likely to be age specific (hence the subscript a):
 * `c_a` = fraction of severe cases that turn critical. Assumed 10%
 * `f_a` = fraction of critical cases that are fatal. Assumed 30%
 
-*Averages taken from https://www.kaggle.com/covid-19-contributions
+*Averages and formulas taken from https://www.kaggle.com/covid-19-contributions
 """
 
 import numpy as np
