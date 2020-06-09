@@ -23,7 +23,7 @@ MOBILITY_WINDOWS = ["{}{}".format(f,p) for p in ["","_5days","_10days","_15days"
 
 
 def features_values(suffix='random'):
-    return pd.read_csv('models/features_{}.csv'.format(suffix), parse_dates=['Date'])
+    return pd.read_csv('models/features_{}.csv'.format(suffix), parse_dates=['Date'], index_col=0)
 
 def metrics_report(X_test, y_test, reg):
     y_pred = reg.predict(X_test)
@@ -135,3 +135,15 @@ def error_band(data, x, hue):
 
         ax.fill_between(x_values, y_min, y_max, color=line.get_color(), alpha=0.2, linewidth=0.0)
         
+
+def a12(lst1, lst2, rev=True):
+    more = same = 0.0
+    for x in lst1:
+        for y in lst2:
+            if x == y:
+                same += 1
+            elif rev and x > y:
+                more += 1
+            elif not rev and x < y:
+                more += 1
+    return (more + 0.5*same) / (len(lst1)*len(lst2))

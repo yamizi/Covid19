@@ -50,8 +50,7 @@ def update_seir(df, active_date, e_date, l_date=None, confidence_interval=True):
     for i, param in enumerate(params_name):
         if param in cols:
             params[i] = data[param].mean()
-    #params = ref_params
-    print("disease params", params, np.sum([params, ref_params],axis=1))
+
     #"decay_values"
     params.append(True)
     R_t = data['R'].values
@@ -176,7 +175,7 @@ def simulate(country_lift, model_suffix, init_date, end_date):
         metrics = json.load(fp)
         y_var = np.power(metrics["std_test"],0.5)
         columns = metrics["x_columns"]
-    
+
     X_lift = scaler.transform(country_lift[columns])
     y_lift = mlp_clf.predict(X_lift)
 
