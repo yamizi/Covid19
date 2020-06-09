@@ -6,7 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sklearn.metrics import mean_squared_log_error, mean_squared_error, r2_score, mean_absolute_error,median_absolute_error
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error,median_absolute_error
 
 
 FIGURE_FOLDER = 'figures/'
@@ -23,11 +23,7 @@ MOBILITY_WINDOWS = ["{}{}".format(f,p) for p in ["","_5days","_10days","_15days"
 
 
 def features_values(suffix='random'):
-    raw_data = pd.read_csv('models/features_{}.csv'.format(suffix))
-    raw_data['Date'] = pd.to_datetime(raw_data['Date'])
-
-    return raw_data
-
+    return pd.read_csv('models/features_{}.csv'.format(suffix), parse_dates=['Date'])
 
 def metrics_report(X_test, y_test, reg):
     y_pred = reg.predict(X_test)
