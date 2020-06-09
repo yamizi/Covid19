@@ -76,9 +76,6 @@ def update_seir(df, active_date, e_date, l_date=None, confidence_interval=True):
 
     dates = data["Date"].iloc[1:]
     l = len(dates)
-    dt = np.arange(l)
-    ticks = dates.values  # dt.strftime('%d/%m/%Y')
-    fig_size = (20, 5)
 
     # print(l,len(y_pred_cases),y_pred_hosp_max.min(),y_pred_hosp_max.max() )
     smoothing_columns = ["SimulationCases", "SimulationHospital", "SimulationCritical", "SimulationDeaths"]

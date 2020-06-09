@@ -1,15 +1,13 @@
-import os , json , random, sys, utils
+import os , json , random, sys, utils, time
 import pandas as pd
 import numpy as np
 
 from datetime import date
 from sklearn.metrics import r2_score, mean_squared_error
-from sklearn.externals import joblib
 from model_taining import train_mlp
-from model_run import simulate, update_seir
+from model_run import simulate
 
 from scipy.stats import wilcoxon
-sys.path.append('./')
 
 import matplotlib.pyplot as plt
 
@@ -23,33 +21,33 @@ def r2_rmse( g, predicted, actual ):
 
 
 def train_model():
-    if not os.path.exists('models/featues_rmse.csv') or not os.path.exists('models/featues_rmse.csv'):
+    if not os.path.exists('models/features_rmse.csv') or not os.path.exists('models/mlp_rmse.save'):
         data = utils.load_dataset()
-        data.loc['Date' <= END_FIT_DATE]
+        data.loc[data['Date'] <= END_FIT_DATE]
         train_mlp(data, output_suffix='rmse')
     
 
-def get_features():
-    features = pd.read_csv('models/features_random.csv', parse_dates=['Date'])
-
+def get_y_var():
     with open('models/metrics_random.json') as fp:
         y_var = np.power(json.load(fp)['std_test'],0.5)
 
-    return features, y_var
+    return y_var
 
 
 def compute_regression_prediction(data, country):
+    y_var = get_y_var()
+    
     country_seir = data.loc[data['CountryName'] == country]
-    country_seir = country_seir[country_seir['Date'] <= END_EVALUATION_DATE]
-    country_seir['R_min'] = np.clip(country_seir['R'] - yvar.mean()/2, 0, 10)
-    country_seir['R_max'] = np.clip(country_seir['R'] + yvar.mean()/2, 0, 10)
+    country_seir = country_seir.loc[country_seir['Date'] <= END_EVALUATION_DATE]
+    country_seir['R_min'] = np.clip(country_seir['R'] - y_var.mean()/2, 0, 10)
+    country_seir['R_max'] = np.clip(country_seir['R'] + y_var.mean()/2, 0, 10)
 
     return country_seir
 
 
 def compute_mlp_prediction(data, country):
     train_model()
-    return update_seir(data, END_FIT_DATE, END_EVALUATION_DATE, None)
+    return simulate(data, 'rmse', END_FIT_DATE, END_EVALUATION_DATE)
 
 
 def compute_rmse(data):
@@ -68,8 +66,8 @@ def compute_rmse(data):
                                 prediction_mlp[['Date','SimulationCases','SimulationCases_max','SimulationCases_min']], on='Date')
 
             predictions = predictions.append(prediction_country)
-        except Exception:
-            print('not enough data')
+        except Exception as e:
+            print('not enough data: {}'.format(e))
             faulty = faulty+1
     
     rmse_seir_regression_cases = predictions.groupby( 'CountryName' ).apply( r2_rmse, 'ConfirmedCases_x','ConfirmedCases_y').reset_index()
@@ -83,6 +81,8 @@ def compute_rmse(data):
 
     rmse = rmse.rename(columns={'r2_x':'r2_seir_min','r2_y':'r2_seir_max','rmse_x':'rmse_seir_min','rmse_y':'rmse_seir_max'})
 
+    print(list(rmse.columns))
+
     return rmse, faulty
 
 
@@ -93,7 +93,7 @@ def output_rmse(rmse):
     full_plots = rmse[['CountryName', 'rmse_seir','rmse_seir_ml','rmse_seir_min','rmse_seir_max']]
     full_plots.columns = ['CountryName', 'SEIR', 'DN-SEIR', 'DN-SEIR min', 'DN-SEIR max']
 
-    full_plots.to_csv('./rmse.csv')
+    full_plots.to_csv('./models/rmse.csv')
 
     x = full_plots['SEIR']
     y = full_plots['DN-SEIR']
@@ -102,3 +102,18 @@ def output_rmse(rmse):
 
     rmse_plots.boxplot(figsize=(20,15),fontsize=14)
     plt.show()
+
+
+if __name__ == '__main__':
+    t_start = time.perf_counter()
+
+    data = pd.read_csv('models/features_random.csv', parse_dates=['Date'])
+    rmse, faulty = compute_rmse(data)
+    output_rmse(rmse)
+
+    t_stop = time.perf_counter()
+
+    print('\n')
+    print("--------------------------------------------------")
+    print('Elapsed time:{:.1f} [sec]'.format(t_stop-t_start))
+    print("--------------------------------------------------") 
