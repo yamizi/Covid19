@@ -13,7 +13,7 @@ FIGURE_FOLDER = 'figures/'
 EXTENSION = '.png'
 
 
-REGIONS = ['region_{}'.format(i) for i in range(10)]
+REGIONS = ['region_{}'.format(i) for i in range(9)]
 DAYS_OF_THE_WEEK = ['day_of_week_{}'.format(i) for i in range(7)]
 DEMOGRAPHY = ["density", "population", "population_p14", "population_p65", "gdp", "area"]
 MOBILITY = ["parks", "residential", "retail/recreation", "transit_stations", "workplace"]
@@ -22,8 +22,8 @@ SEIR = ['ConfirmedCases_x', 'ConfirmedCases_y', 'ConfirmedDeaths', 'Fatalities',
 MOBILITY_WINDOWS = ["{}{}".format(f,p) for p in ["","_5days","_10days","_15days","_30days"] for f in MOBILITY]
 
 
-def features_values():
-    raw_data = pd.read_csv('models/features.csv')
+def features_values(suffix='random'):
+    raw_data = pd.read_csv('models/features_{}.csv'.format(suffix))
     raw_data['Date'] = pd.to_datetime(raw_data['Date'])
 
     return raw_data
@@ -45,7 +45,7 @@ def load_dataset():
     epidemiologic data.
 
     Returns:
-    pandas.Dataframe: All the value for each day for each country.
+    pandas.Dataframe: All the value for each day of the training set for each country.
     '''
 
     google = pd.read_csv("./data/google.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)

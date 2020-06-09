@@ -1,4 +1,5 @@
 *.png
 *.pyc
 .vscode/*
-plots/*
+figures/*
+models/*

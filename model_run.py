@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import timedelta, datetime, date
 from scipy.integrate import solve_ivp
 
+MEASURES = ['workplace', 'parks', 'transit_stations', 'retail/recreation', 'residential']
 
 def update_seir(df, active_date, e_date, l_date=None, confidence_interval=True):
 
@@ -170,51 +171,21 @@ def update_mean(df):
     return df
 
 
-def simulate(df, measures_to_lift, measure_value, end_date, lift_date, measure_values=None, lift_date_values=None, seed=""):
-    print("Building simulation for ", measures_to_lift, df["CountryName"].unique())
+def simulate(country_lift, model_suffix, init_date, end_date):
+    scaler = joblib.load('./models/scaler_{}.save'.format(model_suffix)) 
+    mlp_clf = joblib.load('./models/mlp_{}.save'.format(model_suffix)) 
 
-    scaler = joblib.load("./models/scaler.save") 
-    mlp_clf = joblib.load("./models/mlp.save") 
-
-    with open('./models/metrics.json') as fp:
+    with open('./models/metrics_{}.json'.format(model_suffix)) as fp:
         metrics = json.load(fp)
         y_var = np.power(metrics["std_test"],0.5)
         columns = metrics["x_columns"]
-        
+    
+    X_lift = scaler.transform(country_lift[columns])
+    y_lift = mlp_clf.predict(X_lift)
 
-    init_date = df["Date"].tail(1).dt.date.values[0]
-
-    for measure_to_lift in measures_to_lift:
-        country_lift = df.copy()
-        current_date = init_date
-
-        while current_date < end_date:
-            current_date = current_date + timedelta(days=1)
-
-            obj = {"Date": current_date, "day_of_week":current_date.weekday}
-
-            measures_translations = {"S7_International travel controls":"international_transport","S1_School closing":"school"}
-
-            measure_labels = [measures_translations.get(e,e) for e in measure_to_lift]
-
-            for i, measure in enumerate(measure_labels):
-
-                lift = current_date >= lift_date_values[i] if lift_date_values is not None and len(
-                    lift_date_values) > i else current_date >= lift_date
-                if lift:
-                    obj[measure] = measure_values[i] if measure_values is not None else measure_value
-
-
-            country_lift = country_lift.append(obj, ignore_index=True)
-
-        country_lift = pd.get_dummies(country_lift, prefix="day_of_week", columns=["day_of_week"])
-        country_lift = update_mean(country_lift.fillna(method="pad")).fillna(method="bfill")
-        X_lift = scaler.transform(country_lift[columns])
-        y_lift = mlp_clf.predict(X_lift)
-
-        country_lift["R"] = np.clip(y_lift, 0, 10)
-        country_lift["R_min"] = np.clip(y_lift - y_var.mean()/2, 0, 10)
-        country_lift["R_max"] = np.clip(y_lift + y_var.mean()/2, 0, 10)
+    country_lift["R"] = np.clip(y_lift, 0, 10)
+    country_lift["R_min"] = np.clip(y_lift - y_var.mean()/2, 0, 10)
+    country_lift["R_max"] = np.clip(y_lift + y_var.mean()/2, 0, 10)
 
     country_lift = update_seir(country_lift, init_date, end_date)
 
@@ -236,3 +207,25 @@ def simulate_constantRt(df, end_date):
     country_lift = update_seir(country_lift, init_date, end_date, None, confidence_interval=False)
 
     return country_lift
+
+
+def create_calendar_from_scenario(features_country, measure_names, measure_dates, measure_values, init_date, end_date):
+    country_calendar = features_country.copy()
+    current_date = init_date
+
+    while current_date < end_date:
+        current_date = current_date + timedelta(days=1)
+
+        obj = {"Date": current_date, "day_of_week":current_date.weekday}
+
+        for i, measure in enumerate(measure_names):
+            lift = current_date >= measure_dates[i] if measure_dates is not None and len(measure_dates) > i else current_date >= None
+            if lift:
+                obj[measure] = measure_values[i] if measure_values is not None else 0
+
+
+        country_calendar = country_calendar.append(obj, ignore_index=True)
+
+    country_calendar = update_mean(country_calendar.fillna(method="pad")).fillna(method="bfill")
+
+    return country_calendar

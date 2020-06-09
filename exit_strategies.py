@@ -1,11 +1,11 @@
 import pandas as pd
-from model_run import simulate
+from model_run import simulate, create_calendar_from_scenario, MEASURES
 import utils
 import time
-
-MEASURES = ['workplace', 'parks', 'transit_stations', 'retail/recreation', 'residential']
+from datetime import timedelta
 
 FEATURES_VALUES = utils.features_values()
+END_DATE = pd.to_datetime("2020-9-11")
 
 def get_no_lockdown(country):
     return list(map(lambda x: max(x, 0), get_initial_lockdown(country)))
@@ -84,7 +84,7 @@ def get_scenario(country, scenario_name):
         dates, values = create_no_exit(country)
 
     scenario = dict()
-    scenario['measures_to_lift'] = create_measures(len(dates))
+    scenario['measure_names'] = create_measures(len(dates))
     scenario['measure_values'] = values
     scenario['measure_dates'] = create_dates(dates)
     
@@ -94,26 +94,25 @@ def get_scenario(country, scenario_name):
 def build_parameters(country, scenario):
     parameters = get_scenario(country, scenario)
 
-    print('Run for {} with {}\n'.format(country, scenario))
-    print(parameters)
-    print('\n')
-
     parameters['measure_dates'] = [pd.to_datetime(d) for d in parameters['measure_dates']]
-    parameters['country_df'] = FEATURES_VALUES[FEATURES_VALUES["CountryName"]==country]
+    parameters['features_country'] = FEATURES_VALUES[FEATURES_VALUES["CountryName"]==country]
+    parameters['init_date'] = parameters['features_country']["Date"].tail(1).dt.date.values[0]
+    parameters['end_date'] = END_DATE
 
     return parameters
 
 
 def run_simulation(countries, scenarios):
-    end_date = pd.to_datetime("2020-9-11")
-
     results = pd.DataFrame()
 
     for country in countries:
         for scenario in scenarios:
+            print('Run for {} with {}\n'.format(country, scenario))
+            
             parameters = build_parameters(country, scenario)
 
-            df = simulate(parameters['country_df'], [parameters['measures_to_lift'],], 0, end_date, None, measure_values=parameters['measure_values'], lift_date_values=parameters['measure_dates'])
+            country_lift = create_calendar_from_scenario(**parameters)
+            df = simulate(country_lift, 'random', parameters['init_date'], parameters['end_date'])
             df['Scenario'] = scenario
             df['Country'] = country
             results = results.append(df, ignore_index = True)
