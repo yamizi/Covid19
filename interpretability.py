@@ -10,7 +10,7 @@ from datetime import date
 from sklearn import preprocessing
 from simulations import features, periods
 from scipy.integrate import solve_ivp
-from utils import load_dataset
+from utils import load_dataset, get_feature_columns
 
 # Import model and scaler
 
@@ -21,6 +21,7 @@ mlp_clf = joblib.load('./models/mlp_{}.save'.format(model_suffix))
 
 # Dataset
 data = load_dataset()
+columns = get_feature_columns()
 del data['R']
 lux = data[data['CountryName'] == 'Luxembourg']
 jap = data[data['CountryName'] == 'Japan']
