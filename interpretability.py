@@ -15,9 +15,8 @@ from utils import load_dataset, get_feature_columns
 # Import model and scaler
 
 # Model_suffix ?
-current_dataset_date = "v2_1"
-scaler = joblib.load('./models/scaler_{}.save'.format(model_suffix)) 
-mlp_clf = joblib.load('./models/mlp_{}.save'.format(model_suffix)) 
+scaler = joblib.load('./models/scaler_.save') 
+mlp_clf = joblib.load('./models/mlp_.save') 
 
 # Dataset
 data = load_dataset()
