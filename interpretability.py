@@ -24,7 +24,7 @@ lux = data[data['CountryName'] == 'Luxembourg']
 jap = data[data['CountryName'] == 'Japan']
 italy = data[data['CountryName'] == 'Italy']
 
-# Use Sclaer
+# Use Scaler
 lux_scale = pd.DataFrame(scaler.transform(lux[columns]), columns=columns)
 jap_scale = pd.DataFrame(scaler.transform(jap[columns]), columns=columns)
 it_scale = pd.DataFrame(scaler.transform(italy[columns]), columns=columns)
