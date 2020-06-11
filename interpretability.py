@@ -13,8 +13,6 @@ from scipy.integrate import solve_ivp
 from utils import load_dataset, get_feature_columns
 
 # Import model and scaler
-
-# Model_suffix ?
 scaler = joblib.load('./models/scaler_.save') 
 mlp_clf = joblib.load('./models/mlp_.save') 
 
