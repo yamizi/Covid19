@@ -4,11 +4,12 @@ import pandas as pd
 import json, time, os
 from datetime import datetime, timedelta
 from sklearn.externals import joblib
-from model_run import simulate
+
+from model_run import raw_simulate
 
 class ScheduleProblem(Problem):
-
-    def __init__(self, begin_date="2020-04-30",end_date="2020-09-30",country_name = "Luxembourg", critical_capacity=90, step=14, record_all=False):
+    
+    def __init__(self, begin_date="2020-04-30",end_date="2020-09-30",country_name = "Luxembourg", critical_capacity=90, step=14, record_all=False, model_suffix=None):
 
         folder = "data"
         self.country_name = country_name
@@ -47,6 +48,16 @@ class ScheduleProblem(Problem):
             self.record_path = "./experiments/ga_steps/{}".format(country_name)
             os.makedirs(self.record_path,exist_ok=True)
 
+
+        self.scaler = joblib.load('./models/scaler_{}.save'.format(model_suffix)) if model_suffix is not None else joblib.load('./models/scaler.save')
+        self.mlp_clf = joblib.load('./models/mlp_{}.save'.format(model_suffix)) if model_suffix is not None else joblib.load('./models/mlp.save')
+
+        metrics_path = './models/metrics_{}.json'.format(model_suffix) if model_suffix is not None else './models/metrics.json'
+        with open(metrics_path) as fp:
+            metrics = json.load(fp)
+            self.y_var = np.power(metrics["std_test"],0.5)
+            self.columns = metrics["x_columns"]
+
         super().__init__(n_var=nb_var,
                          n_obj=2,
                          n_constr=1,
@@ -61,10 +72,12 @@ class ScheduleProblem(Problem):
         lift_date_values = [pd.to_datetime(d) for d in dates]
 
         begin= time.time()
-        res = simulate(self.df.copy(), [measures_to_lift]*len(x), 0, self.end_date, None,
-                           measure_values=x, lift_date_values=lift_date_values, seed="")
-        end = time.time()
+#df, measures_to_lift, measure_value, end_date, lift_date, columns, yvar, mlp_clf, scaler,
+ #            measure_values=None, lift_date_values=None, seed="", confidence_interval=True, filter_output=None, return_measures=False
 
+        res = raw_simulate(self.df.copy(), [measures_to_lift]*len(x), 0, self.end_date, None, self.columns, self.yvar, self.mlp_clf, self.scaler,
+                           measure_values=x, lift_date_values=lift_date_values, seed="", confidence_interval=True, filter_output=None, return_measures=False)
+        end = time.time()
         # f1 minimize the deaths
         # f2 maximize the activity (maximize x values => minimize the absolute value of f2)
         f1 = np.array([e["SimulationDeaths_max"].tail(1).values[0] for e in res])
