@@ -84,7 +84,7 @@ def save_figure(filename, dpi=300, bbox_inches='tight'):
     plt.close('all')
 
 
-def plot(type, data, name, x, y, y_label, x_label='', hue=None, y_lim=None, fig_size=(6,4), legend_pos='best', style=None, show_error=False, **kwargs):
+def plot(type, data, name, x, y, y_label, x_label='', hue=None, y_lim=None, fig_size=(6,4), legend_pos='best', style=None, custom_error=False, **kwargs):
     fig = plt.figure(figsize=fig_size)
     sns.set(style="white", color_codes=True, font_scale=1.5)
 
@@ -95,6 +95,8 @@ def plot(type, data, name, x, y, y_label, x_label='', hue=None, y_lim=None, fig_
         plt.ticklabel_format(style='plain', axis='y',useOffset=False)
     elif type == 'scatter':
         g = sns.scatterplot(x=x, y=y, hue=hue, data=data, palette=palette, legend="full", style=style, **kwargs)
+    elif type == 'boxplot':
+        g = sns.boxplot(x=x, y=y, hue=hue, data=data, palette=palette, **kwargs)
     else:
         raise TypeError("Only line or scatter are allowed")
 
@@ -114,7 +116,7 @@ def plot(type, data, name, x, y, y_label, x_label='', hue=None, y_lim=None, fig_
     if y_lim != None and len(y_lim) == 2:
         plt.ylim(y_lim)
 
-    if show_error:
+    if custom_error:
         error_band(data, x, hue)
 
     save_figure('figures/' + name + EXTENSION)
