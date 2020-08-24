@@ -42,7 +42,7 @@ def find_best_model(X_train, y_train, X_test, y_test):
     for i in range(5):
         print("Iter search {}".format(i))
         parameter_space = {
-            'hidden_layer_sizes': [(1000,50),], #[(1000,50),(50, 100, 50), (50, 100, 100), (50, 500, 50)],
+            'hidden_layer_sizes': [(1000,50),(50, 100, 50), (50, 100, 100), (50, 500, 50)],
             'alpha': [0.0001, 0.05]
         }
 

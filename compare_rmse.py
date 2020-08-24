@@ -94,6 +94,7 @@ def compute_rmse(suffix='random'):
 def output_rmse(rmse):
     rmse_plots = rmse[['rmse_seir','rmse_seir_ml','rmse_seir_min','rmse_seir_max']]
     rmse_plots.columns = ['SEIR', 'DN-SEIR', 'DN-SEIR min', 'DN-SEIR max']
+    rmse_plots = rmse_plots.melt(value_vars=list(rmse_plots.columns), var_name='Simulation', value_name="RMSE")
 
     full_plots = rmse[['CountryName', 'rmse_seir','rmse_seir_ml','rmse_seir_min','rmse_seir_max']]
     full_plots.columns = ['CountryName', 'SEIR', 'DN-SEIR', 'DN-SEIR min', 'DN-SEIR max']
@@ -109,8 +110,7 @@ def output_rmse(rmse):
     print('Wilcoxon ranked test for DN-SEIR and SEIR: p-value = {}'.format(p_value))
     print('A_12 = {}'.format(a12))
 
-    rmse_plots.boxplot(figsize=(20,15),fontsize=14)
-    plt.show()
+    utils.plot('boxplot', rmse_plots, 'rmse_comparison', 'RMSE', 'Simulation', '', 'RMSE', fig_size=(8,4))
 
 
 if __name__ == '__main__':

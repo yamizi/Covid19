@@ -167,6 +167,53 @@ def update_mean(df):
     return df
 
 
+def raw_simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, yvar, mlp_clf, scaler,
+             measure_values=None, lift_date_values=None, seed="", confidence_interval=True, filter_output=None, return_measures=False):
+    #print("Building simulation for ", measures_to_lift, df["CountryName"].unique())
+
+    init_date = df["Date"].tail(1).dt.date.values[0]
+    all_simulations = []
+    for k, measure_to_lift in enumerate(measures_to_lift):
+        country_lift = df.copy()
+        current_date = init_date
+
+        while current_date < end_date:
+            current_date = current_date + timedelta(days=1)
+
+            obj = {"Date": current_date, "day_of_week":current_date.weekday}
+            vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values[0]
+
+            for i, measure in enumerate(measure_to_lift):
+                lift = current_date >= lift_date_values[i] if lift_date_values is not None and len(
+                    lift_date_values) > i else current_date >= lift_date
+                if lift:
+                    obj[measure] = vals[i] if vals is not None else measure_value
+
+
+            country_lift = country_lift.append(obj, ignore_index=True)
+
+        country_lift = pd.get_dummies(country_lift, prefix="day_of_week", columns=["day_of_week"])
+        country_lift = update_mean(country_lift.fillna(method="pad")).fillna(method="bfill")
+
+        if return_measures:
+            return country_lift
+
+        X_lift = scaler.transform(country_lift[columns])
+        y_lift = mlp_clf.predict(X_lift)
+
+        country_lift["R"] = np.clip(y_lift, 0, 10)
+        country_lift["R_min"] = np.clip(y_lift - yvar.mean()/2, 0, 10)
+        country_lift["R_max"] = np.clip(y_lift + yvar.mean()/2, 0, 10)
+
+        country_lift = update_seir(country_lift, init_date, end_date, None, confidence_interval=confidence_interval)
+
+        if filter_output:
+            all_simulations.append(country_lift[filter_output])
+        else:
+            all_simulations.append(country_lift)
+
+    return country_lift if len(measures_to_lift)==1 else all_simulations
+
 def simulate(country_lift, model_suffix, init_date, end_date):
     scaler = joblib.load('./models/scaler_{}.save'.format(model_suffix)) 
     mlp_clf = joblib.load('./models/mlp_{}.save'.format(model_suffix)) 
