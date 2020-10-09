@@ -5,3 +5,5 @@ figures/*
 models/*
 *.json
 *.npy
+/venv/
+.idea

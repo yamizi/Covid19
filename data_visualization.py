@@ -2,7 +2,7 @@ import time, utils
 import pandas as pd
 import matplotlib.pyplot as plt
 
-FEATURES_VALUES = utils.features_values()
+FEATURES_VALUES = []
 
 
 def plot_model_results(y_pred, train_data, valid_data=None):

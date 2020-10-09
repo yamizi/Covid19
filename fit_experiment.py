@@ -14,8 +14,8 @@ def main(argv):
         'Date': [],
         'CountryName': []
     })
-
-    dataset = pd.read_csv("./data/google.csv", parse_dates=['Date'])
+    dataset = pd.read_csv("./data/features.csv", parse_dates=['Date'])
+    # dataset = pd.read_csv("./data/google.csv", parse_dates=['Date'])
     dataset = dataset.drop(["Unnamed: 0"], axis=1)
 
     dataset.tail(1)
