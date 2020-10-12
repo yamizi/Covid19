@@ -34,6 +34,55 @@ def metrics_report(X_test, y_test, reg):
            'RMSE': np.sqrt(mean_absolute_error(y_test, y_pred))}
 
 
+def extend_features_with_means(df,columns,smoothing_days):
+    for c in columns:
+        for p in smoothing_days:
+            smoothed = df[c].astype(float).rolling(p,
+                     win_type='gaussian',
+                     min_periods=p-1).mean(std=2)
+
+            df["{}_{}".format(c,p)] = smoothed.fillna(method="bfill")
+
+    return df
+
+def load_luxembourg_dataset(extend_features = True):
+    '''
+    Load data from the dataset folder, all the values for the files are hardcoded.
+    We first load the google mobility dataset and merge it with demography and
+    epidemiologic data.
+
+    Returns:
+    pandas.Dataframe: All the value for each day of the training set for each country.
+    '''
+
+    google = pd.read_csv("./data/luxembourg/luxembourg_mobility_google.csv")
+    apple = pd.read_csv("./data/luxembourg/luxembourg_mobility_apple.csv")
+    oxford = pd.read_csv("./data/luxembourg/luxembourg_npi_oxford.csv")
+    sectors = pd.read_csv("./data/luxembourg/luxembourg_allsectors_rt.csv")
+
+    google = google.rename({"Unnamed: 0": "Date"}, axis=1)
+    google = google.drop(index=0)
+
+    apple = apple.rename({"Unnamed: 0": "Date"}, axis=1)
+    sectors = sectors.rename({"Unnamed: 0": "Date"}, axis=1)
+    y_columns = sectors.columns[1:]
+
+    all_df = pd.merge(sectors, google, on="Date", how="left")
+    all_df = pd.merge(all_df, apple, on="Date", how="left")
+    all_df = pd.merge(all_df, oxford, on="Date", how="left")
+
+    all_df.index = pd.to_datetime(all_df["Date"], format="%Y-%m-%d")
+    all_df = all_df.drop(["Date"], axis=1)
+
+    if extend_features:
+        all_columns = all_df.columns
+        feature_columns = [x for x in all_columns if x not in y_columns]
+        smoothing_days = [5, 10, 15]
+        all_columns_extended = extend_features_with_means(all_df,feature_columns,smoothing_days)
+        return all_columns_extended.fillna(0), y_columns
+    return all_df.fillna(0), y_columns
+
+
 def load_dataset():
     '''
     Load data from the dataset folder, all the values for the files are hardcoded.
