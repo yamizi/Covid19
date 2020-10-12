@@ -149,9 +149,12 @@ def update_seir(df, active_date, e_date, l_date=None, confidence_interval=True):
 
 ### updating means
 
-def update_mean(df):
-    df[utils.MOBILITY] = df[utils.MOBILITY].rolling(3, 2).mean()
-    for f in utils.MOBILITY:
+
+def update_mean(df, measures=None):
+    measures = utils.MOBILITY if measures is None else measures
+
+    df[measures] = df[measures].rolling(3, 2).mean()
+    for f in measures:
         days_15 = df[f].rolling(15, min_periods=14).mean().fillna(method="bfill")
         df["{}_15days".format(f)] = days_15
 

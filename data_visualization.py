@@ -2,10 +2,9 @@ import time, utils
 import pandas as pd
 import matplotlib.pyplot as plt
 
-FEATURES_VALUES = utils.features_values()
-
-
 def plot_model_results(y_pred, train_data, valid_data=None):
+    FEATURES_VALUES = utils.features_values()
+
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(48, 10))
 
     ax1.set_title('Confirmed Cases')
@@ -38,6 +37,8 @@ def plot_model_results(y_pred, train_data, valid_data=None):
     ax1.legend(loc='best')
 
 def pretty_name(x):
+    FEATURES_VALUES = utils.features_values()
+
     measure = x['Measures']
     
     if measure == 'grocery/pharmacy':
@@ -55,6 +56,7 @@ def pretty_name(x):
 
 
 def draw_mobility(countries):
+    FEATURES_VALUES = utils.features_values()
     value_vars = utils.MOBILITY
     data = FEATURES_VALUES.melt(id_vars=['Date', 'CountryName'], value_vars=value_vars, var_name='Measures', value_name="Value")
     data['Measures'] = data.apply(pretty_name, axis=1)
@@ -64,6 +66,7 @@ def draw_mobility(countries):
 
 
 def draw_death_rate(countries):
+    FEATURES_VALUES = utils.features_values()
     data = FEATURES_VALUES[['Date', 'CountryName', 'ConfirmedDeaths', 'population']]
     
     data['Death Rate'] = data.apply(lambda x: x['ConfirmedDeaths'] * 1000000 / x['population'], axis=1)
@@ -73,6 +76,7 @@ def draw_death_rate(countries):
 
 
 def draw_death_over_mobility(countries):
+    FEATURES_VALUES = utils.features_values()
     value_vars = ['{}_15days'.format(mobility) for mobility in utils.MOBILITY]
     data = FEATURES_VALUES.melt(id_vars=['CountryName', 'ConfirmedDeaths', 'R'], value_vars=value_vars, var_name='Measures', value_name="Value")
     data['Measures'] = data.apply(pretty_name, axis=1)
