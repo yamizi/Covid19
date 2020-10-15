@@ -8,6 +8,7 @@ from typing import List
 from datetime import timedelta, datetime
 from utils import extend_features_with_means
 import joblib, json
+from matplotlib import pyplot as plt
 
 class EconomicSimulator(object):
 
@@ -18,6 +19,7 @@ class EconomicSimulator(object):
           "schools_m" : ["open", "partial", "preventive_measure", "close"],
           "public_gath":["yes", "no"],
           "social_dist": ["yes", "no"],
+           "resp_gov_measure": ["yes", "no"],
           "private_gath":[1000,0,5,10,20],
           "parks_m":["yes","no"],
           "travel_m":["yes", "no"],
@@ -55,6 +57,11 @@ class EconomicSimulator(object):
         else:
             for k, v in initial_inputs.items():
                 self.initial_df[k] = v
+
+        self.mlp_clf = joblib.load("./models/mlp_economic_sectors.save")
+        self.scaler = joblib.load("./models/scaler_economic_sectors.save")
+        self.metrics = json.load(open("./models/metrics_economic_sectors.json"))
+
 
     def build_df(self, measures_to_change: List[dict], end_date: str,
                  measure_values: List[dict] = None, change_date_values: List[str] = None, start_date:str=None) -> pd.DataFrame:
@@ -106,7 +113,7 @@ class EconomicSimulator(object):
             population = population['luxembourg'].sum() + population['min_be'].sum() + population['min_de'].sum() + \
                          population['min_fr'].sum()
 
-        if b_be == 'open' and b_fr == 'open' and b_de == 'open':
+        elif b_be == 'open' and b_fr == 'open' and b_de == 'open':
             population = population['total'].sum()  # normal population
         else:
             if b_be == 'open':
@@ -134,28 +141,21 @@ class EconomicSimulator(object):
 
         obj["population"] = self.update_population(obj["b_be"],obj["b_fr"],obj["b_de"],obj["activity_restr"])
 
-        if obj["activity_restr"] == 'close':
-            obj["retail/recreation"] = self.initial_df['retail/recreation'].min()
-            #obj["residential"] = self.initial_df['residential'].max()
-            obj["C2"] = 1
-            obj["C6"] = 1
-            obj["C7"] = 1
-        elif obj["activity_restr"] == 'mixed':
-            obj["retail/recreation"] = self.initial_df['retail/recreation'].mean()
-            #obj["residential"] = self.initial_df['residential'].mean()
-            obj["C2"] = 0.5
-            obj["C6"] = 0.5
-            obj["C7"] = 0.5
+        if obj["resp_gov_measure"] == 'yes':
+            obj["H1"] = 2
+            obj["H2"] = 3
+            obj["H3"] = 2
         else:
-            obj["retail/recreation"] = max(self.initial_df['retail/recreation'])
-            #obj["residential"] = min(self.initial_df['residential'])
-            obj["C2"] = 0
-            obj["C6"] = 0
-            obj["C7"] = 0
+            obj["H1"] = 0
+            obj["H2"] = 0
+            obj["H3"] = 0
 
         # Borders
         if obj["b_be"] == 'close' or obj["b_fr"] == 'close' or obj["b_de"] == 'close':
             obj["C8"] = 0
+            obj["C5"] = 0.5
+            obj["transit"] = self.initial_df['transit'].max()
+
         else:
             obj["C8"] = 1
 
@@ -163,14 +163,19 @@ class EconomicSimulator(object):
 
         if obj["travel_m"] == 'no':
             obj["C8"] = 0
+            obj["C5"] = 0.5
+            obj["transit"] = self.initial_df['transit'].min()
+
         else:
             obj["C8"] = 1
+            obj["C5"] = 1
+            obj["transit"] = self.initial_df['transit'].max()
 
         # Parks
         if obj["parks_m"] == 'yes':
-            obj["parks_m"] = max(self.initial_df['parks'])
+            obj["parks"] = max(self.initial_df['parks'])
         else:
-            obj["parks_m"] = min(self.initial_df['parks'])
+            obj["parks"] = min(self.initial_df['parks'])
 
         # Schools
         if obj["schools_m"] == 'open':
@@ -192,6 +197,30 @@ class EconomicSimulator(object):
             obj["C4"] = 1
         elif obj["private_gath"] == 1000:
             obj["C4"] = 0
+
+        if obj["activity_restr"] == 'close':
+            obj["retail/recreation"] = self.initial_df['retail/recreation'].min()
+            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].min()
+            obj["workplaces"] = self.initial_df['workplaces'].min()
+            obj["C2"] = 1
+            obj["C6"] = 1
+            obj["C7"] = 1
+            obj["transit"], obj["driving"], obj["public_transport"], obj["walking"] = -100, -100 ,-100, -100
+
+        elif obj["activity_restr"] == 'mixed':
+            obj["retail/recreation"] = self.initial_df['retail/recreation'].mean()
+            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].mean()
+            obj["workplaces"] = self.initial_df['workplaces'].mean()
+            obj["C2"] = 0.5
+            obj["C6"] = 0.5
+            obj["C7"] = 0.5
+        else:
+            obj["retail/recreation"] = max(self.initial_df['retail/recreation'])
+            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].max()
+            obj["workplaces"] = self.initial_df['workplaces'].max()
+            obj["C2"] = 0
+            obj["C6"] = 0
+            obj["C7"] = 0
 
         return obj
 
@@ -219,13 +248,15 @@ class EconomicSimulator(object):
 
             simulation = self.update_seir(sector_df, active_date=init_date, e_date=dates[-1],
                                      population=sector_population*susceptible_factor)
-            simulation = simulation.drop(["Date"], axis=1)
+            #simulation.index = simulation["Date"]
+            #simulation = simulation.drop(["Date"], axis=1)
             simulations[sector] = simulation
 
         simulations = self.simulate_economic_impact(simulations)
         return simulations
 
     def simulate_economic_impact(self, df):
+        #### TODO economic impacts
         return df
 
     def update_seir(self, df, active_date, e_date, population):
@@ -240,7 +271,7 @@ class EconomicSimulator(object):
         inf_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-14))]
 
         # Herd immunity is assumed at 70%
-        N = population
+        N = population * 0.7
         n_infected = ref_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedCases'].iloc[
             0]  # data['InfectiousCases'].iloc[0]
         n_exposed = data['ConfirmedCases'].iloc[0] - ref_data['ConfirmedCases'].iloc[
@@ -297,25 +328,48 @@ class EconomicSimulator(object):
 
         return simulations
 
+    def run(self, dates, measures, values, end_date):
+        df, init_date = self.build_df(measures, end_date, values, dates)
+        columns = self.metrics["x_columns"]
 
-def run():
+        X_lift = self.scaler.transform(df[columns])
+        y_lift = self.mlp_clf.predict(X_lift)
+        y_lift = np.clip(y_lift/2,0,2)
+
+        Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
+        Rt["Date"] = df["Date"]
+        population_total = pd.DataFrame(data={"population": df["population"], "date": df["Date"]}, index=df.index)
+
+        simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date)
+        merged = pd.merge(simulation["ALL"], simulation["A"], suffixes=["_ALL", "_A"], on="Date")
+
+        for key in simulation.keys():
+            if key!="ALL" and key!="A":
+                merged = pd.merge(merged, simulation[key], suffixes=["", "_{}".format(key)], on="Date")
+
+        merged_final = pd.merge(merged, df, on="Date")
+        return merged_final
+
+
+def run(dates=None,measures=None,values=None):
     sim = EconomicSimulator()
-    dates = ["2020-08-15", "2020-08-30"]
-    measures, values = [["b_be","b_fr"]], [["close","close"]]
-    end_date = "2020-10-15"
-    df, init_date = sim.build_df(measures, end_date, values, dates)
+    if dates is None:
+        dates = ["2020-08-15", "2020-08-30"]
+    if measures is None:
+        measures = [["b_be","b_fr"]]
+    if values is None:
+        values = [["close","close"]]
 
-    mlp_clf= joblib.load("./models/mlp_economic_sectors.save")
-    scaler =joblib.load("./models/scaler_economic_sectors.save")
-    metrics = json.load(open("./models/metrics_economic_sectors.json"))
-    columns = metrics["x_columns"]
-    X_lift = scaler.transform(df[columns])
-    y_lift = mlp_clf.predict(X_lift)
-    Rt = pd.DataFrame(data=y_lift, index=df.index, columns=sim.ml_outputs)
-    Rt["Date"] = df["Date"]
-    population_total = pd.DataFrame(data={"population":df["population"],"date":df["Date"]}, index=df.index)
+    end_date = "2020-12-15"
 
-    simulation = sim.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date )
-    print(sim.ml_inputs)
+    simulation = sim.run(dates, measures, values, end_date)
+    #simulation["O"].plot(title="Sector O")
+    #simulation["ALL"].plot(title="All sectors")
 
+    #print(sim.ml_inputs)
+
+dates = ["2020-08-15"]
 run()
+run(measures = [["activity_restr"]],values = [["close"]])
+
+plt.show()
