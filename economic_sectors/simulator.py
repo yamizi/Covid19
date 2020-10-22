@@ -8,6 +8,7 @@ from typing import List
 from datetime import timedelta, datetime
 from utils import extend_features_with_means
 import joblib, json
+import json
 from matplotlib import pyplot as plt
 
 class EconomicSimulator(object):
@@ -19,7 +20,7 @@ class EconomicSimulator(object):
           "schools_m" : ["open", "partial", "preventive_measure", "close"],
           "public_gath":["yes", "no"],
           "social_dist": ["yes", "no"],
-           "resp_gov_measure": ["yes", "no"],
+          "resp_gov_measure": ["yes", "no"],
           "private_gath":[1000,0,5,10,20],
           "parks_m":["yes","no"],
           "travel_m":["yes", "no"],
@@ -50,7 +51,6 @@ class EconomicSimulator(object):
         self.ml_inputs = self.initial_df.columns
         self.ml_outputs = self.ml_outputs.values
 
-
         if initial_inputs is None:
             for k,v in self.possibile_inputs.items():
                 self.initial_df[k] = v[0]
@@ -58,10 +58,21 @@ class EconomicSimulator(object):
             for k, v in initial_inputs.items():
                 self.initial_df[k] = v
 
+        self.load_rt_models()
+        self.load_economic_models()
+
+    def load_rt_models(self):
         self.mlp_clf = joblib.load("./models/mlp_economic_sectors.save")
         self.scaler = joblib.load("./models/scaler_economic_sectors.save")
         self.metrics = json.load(open("./models/metrics_economic_sectors.json"))
 
+    def load_economic_models(self):
+        self.model_export = joblib.load("./models/economic_impact/model_export.save")
+        self.model_unemployment = joblib.load("./models/economic_impact/model_unemployment.save")
+        self.model_inflation = joblib.load("./models/economic_impact/model_inflation.save")
+        self.model_ipcn = joblib.load("./models/economic_impact/model_ipcn.save")
+
+        self.economic_scaler = joblib.load("./models/economic_impact/scaler_econ.save")
 
     def build_df(self, measures_to_change: List[dict], end_date: str,
                  measure_values: List[dict] = None, change_date_values: List[str] = None, start_date:str=None) -> pd.DataFrame:
@@ -252,12 +263,8 @@ class EconomicSimulator(object):
             #simulation = simulation.drop(["Date"], axis=1)
             simulations[sector] = simulation
 
-        simulations = self.simulate_economic_impact(simulations)
         return simulations
 
-    def simulate_economic_impact(self, df):
-        #### TODO economic impacts
-        return df
 
     def update_seir(self, df, active_date, e_date, population):
         active_date = pd.to_datetime(active_date)
@@ -328,6 +335,23 @@ class EconomicSimulator(object):
 
         return simulations
 
+    def predict_economic(self, data):
+        df = data.drop(["Date"], axis=1)
+        X = self.economic_scaler.transform(df)
+        inflation = self.model_inflation.predict(X)
+        ipcn = self.model_ipcn.predict(X)
+        unemploy = self.model_unemployment.predict(X)
+        export = self.model_export.predict(X)
+
+        data["inflation"] = inflation
+        data["ipcn"] = ipcn
+        data["unemploy"] = unemploy
+        data["export"] = export
+
+        return data
+
+
+
     def run(self, dates, measures, values, end_date):
         df, init_date = self.build_df(measures, end_date, values, dates)
         columns = self.metrics["x_columns"]
@@ -347,7 +371,12 @@ class EconomicSimulator(object):
             if key!="ALL" and key!="A":
                 merged = pd.merge(merged, simulation[key], suffixes=["", "_{}".format(key)], on="Date")
 
+        df["Date"] = pd.to_datetime(df["Date"])
         merged_final = pd.merge(merged, df, on="Date")
+        merged_final = self.predict_economic(merged_final)
+
+        merged_final.index = merged_final["Date"]
+
         return merged_final
 
 
@@ -366,10 +395,51 @@ def run(dates=None,measures=None,values=None):
     #simulation["O"].plot(title="Sector O")
     #simulation["ALL"].plot(title="All sectors")
 
-    #print(sim.ml_inputs)
+    return simulation
 
-dates = ["2020-08-15"]
-run()
-run(measures = [["activity_restr"]],values = [["close"]])
+dt = ["2020-08-15"]
+#run()
+#run(measures = [["activity_restr"]],values = [["close"]])
 
-plt.show()
+#plt.show()
+scenarios = []
+measures_possibles = EconomicSimulator.possibile_inputs
+nb_values = len(measures_possibles.keys())
+
+combinations = []
+values = []
+
+max_scenarios = 50000
+
+def iter(k, last_combinations=[], last_values=[]):
+    for i in range(k, nb_values):
+        ms, vs = list(measures_possibles.keys())[i], list(measures_possibles.values())[i]
+        for v in vs:
+
+            if len(combinations) > max_scenarios:
+                return
+
+            last_c = last_combinations.copy()
+            last_c.append(ms)
+            last_v =  last_values.copy()
+            last_v.append(v)
+
+            if i+1<nb_values:
+                iter(i + 1, last_c, last_v)
+
+            else:
+
+                if len(last_c)==nb_values:
+                    dates = dt * len(last_v)
+                    df = run(dates=dates, measures=[last_c], values=[last_v])
+                    measures = {"dates": dates, "inputs": last_c, "values": last_v}
+                    combinations.append(last_c)
+                    values.append(last_v)
+                    json.dump(measures, open("scenarios/{}.json".format(len(combinations)), "w"))
+                    df.to_csv("scenarios/{}.csv".format(len(combinations)))
+
+
+    return
+
+iter(0)
+print(len(combinations))
