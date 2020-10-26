@@ -1,8 +1,14 @@
 import pandas as pd
+import wget
 
-google_mobility_url = (
-    "https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv"
-)
+mobility_file_path = "./raw_data/Global_Mobility_Report.csv"
+
+
+def download_mobility_data():
+    google_mobility_url = (
+        "https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv"
+    )
+    wget.download(google_mobility_url, mobility_file_path)
 
 
 def prepare_mobility_features():
@@ -10,8 +16,9 @@ def prepare_mobility_features():
     Retrieve google mobility data per countries
     :return: Dataframe containing mobility data per countries
     """
+    # download_mobility_data()
     mobility_csv = pd.read_csv(
-        f"{google_mobility_url}", parse_dates=["date"], dtype={4: str}
+        f"{mobility_file_path}", parse_dates=["date"], dtype={4: str}
     )
 
     mobility = mobility_csv[
@@ -61,3 +68,6 @@ def prepare_mobility_features():
     )
 
     return mobility
+
+if __name__ == "__main__":
+    download_mobility_data()

@@ -9,8 +9,12 @@ from sources import (
 import pandas as pd
 import warnings
 import sys
+import os
+import errno
 
-DEFAULT_OUTPUT_CSV = f"./datasets/features.csv"
+
+DEFAULT_PATH="dataset"
+DEFAULT_OUTPUT_CSV = f"{DEFAULT_PATH}/features.csv"
 warnings.filterwarnings("ignore", category=SettingWithCopyWarning)
 
 selected_measures = [
@@ -142,9 +146,16 @@ def extract_features(out_full_path):
     features = add_days_granularity(features, features_list)
     print("done")
     print("Writting to csv...", end="")
+    if not os.path.exists(os.path.dirname(out_full_path)):
+        try:
+            os.makedirs(os.path.dirname(out_full_path))
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
 
-    features.to_csv(f"{out_full_path}")
-    print(f"done. Saved to {out_full_path}")
+    with open(out_full_path, "w") as f:
+        features.to_csv(f)
+        print(f"done. Saved to {f.name}")
 
 
 if __name__ == "__main__":
@@ -155,4 +166,5 @@ if __name__ == "__main__":
     else:
         out_full_path = args[1]
         print(f"The output will be saved to [{out_full_path}]")
+
     extract_features(out_full_path)

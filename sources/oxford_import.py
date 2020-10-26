@@ -1,7 +1,8 @@
 import pandas as pd
+import wget
 
 xls_oxford_url = "https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/master/data/timeseries/OxCGRT_timeseries_all.xlsx"
-
+xls_oxford_path = "./raw_data/oxford_pandemic_measures/OxCGRT_timeseries_all.xlsx"
 # Measure alias and corresponding sheet name
 selected_measures = [
     ("school", "c1_schoolclosing"),
@@ -10,12 +11,16 @@ selected_measures = [
 ]
 
 
+def download_oxford_data():
+    wget.download(f"{xls_oxford_url}", f"{xls_oxford_path}")
+
+
 def __load_xls() -> dict:
     """
     Loads the corresponding excel oxford_file and returns dict of {measure_name : corresponding_df}
     :return:
     """
-    xls_oxford = pd.ExcelFile(f"{xls_oxford_url}")
+    xls_oxford = pd.ExcelFile(f"{xls_oxford_path}")
     res = {}
     for (df_name, s_name) in selected_measures:
         df = pd.read_excel(xls_oxford, f"{s_name}")
@@ -73,9 +78,13 @@ def prepare_measure_features(selected_measures_in=None):
             columns.append(f"{key}")
 
         df = list(zip(dates, country, *measures_df))
-        df = pd.DataFrame(df, columns=columns,)
+        df = pd.DataFrame(df, columns=columns, )
         oxford_measures = oxford_measures.append(df, ignore_index=True)
 
     oxford_measures = __normalize(oxford_measures)
 
     return oxford_measures
+
+
+if __name__ == "__main__":
+    download_oxford_data()

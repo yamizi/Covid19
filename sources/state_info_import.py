@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 
-country_info_uri = "stateInfo/metrics_country.csv"
-demographic_info_path = "stateInfo/population"
+country_info_uri = "raw_data/metrics_country.csv"
+demographic_info_path = "raw_data/population"
 
 
 def prepare_demographic_features() -> list:

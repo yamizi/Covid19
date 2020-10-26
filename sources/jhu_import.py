@@ -1,8 +1,15 @@
 import pandas as pd
+import wget
+import os
 
 # Johns Hopkins University Center for Systems Science and Engineering root dataset url
 JHU_CSSE_url = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series"
-
+jhu_file_path = "../raw_data/jhu_confirmed_death"
+def download_jhu_data():
+    name = "time_series_covid19_confirmed_global"
+    wget.download(f"{JHU_CSSE_url}/{name}.csv", f"{jhu_file_path}/{name}.csv")
+    name = "time_series_covid19_deaths_global"
+    wget.download(f"{JHU_CSSE_url}/{name}.csv", f"{jhu_file_path}/{name}.csv")
 
 def __load_confirmed_cases_jhu() -> pd.DataFrame:
     """
@@ -61,3 +68,6 @@ def prepare_cases_deaths() -> pd.DataFrame:
         cases_deaths = cases_deaths.append(df, ignore_index=True)
 
     return cases_deaths
+
+if __name__ == "__main__":
+    download_jhu_data()
