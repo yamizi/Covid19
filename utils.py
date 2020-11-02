@@ -43,18 +43,20 @@ def load_dataset():
     Returns:
     pandas.Dataframe: All the value for each day of the training set for each country.
     '''
+    prefix = "current_"
+    # prefix=""
+    # google = pd.read_csv("./data/google.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)
+    google = pd.read_csv("./dataset/features.csv", parse_dates=['Date']).drop(["Unnamed: 0"], axis=1)
+    countries = pd.read_csv(f"./data/{prefix}seirhcd.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)
 
-    google = pd.read_csv("./data/google.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)
-    countries = pd.read_csv("./data/seirhcd.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)
-
-    google = pd.get_dummies(google,prefix="day_of_week", columns=["day_of_week"])
+    # google = pd.get_dummies(google,prefix="day_of_week", columns=["day_of_week"])
     google = pd.get_dummies(google,prefix="region", columns=["region"])
     dataset = pd.merge(countries.groupby(["CountryName","Date"]).agg("first"), google.groupby(["CountryName","Date"]).agg("first"), on=["CountryName","Date"], how="inner")
     dataset = dataset.reset_index().dropna()
 
     columns = ['R', 'CountryName', 'Date']
     columns.extend(REGIONS)
-    columns.extend(DAYS_OF_THE_WEEK)
+    # columns.extend(DAYS_OF_THE_WEEK)
     columns.extend(MOBILITY_WINDOWS)
     columns.extend(DEMOGRAPHY)
     columns.extend(SEIR)
@@ -66,7 +68,7 @@ def get_feature_columns():
     columns = []
     columns.extend(MOBILITY_WINDOWS)
     columns.extend(REGIONS)
-    columns.extend(DAYS_OF_THE_WEEK)
+    # columns.extend(DAYS_OF_THE_WEEK)
     columns.extend(DEMOGRAPHY)
 
     return columns

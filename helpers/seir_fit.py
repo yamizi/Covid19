@@ -54,12 +54,12 @@ def fit_model(area_name,df, population,
               bounds=((1, 20),  # R bounds
                       (0.5, 10), (2, 20),  # transition time param bounds
                       (0.5, 1), (0, 1), (0, 1), (1, 5), (1, 100)),  # fraction time param bounds
-              make_plot=True, pred_days=7):
+              make_plot=True, pred_days=0):
     train_data = df[(df["CountryName"]==area_name) & (df['ConfirmedCases'] >0)]
 
-    begin = train_data.index[-1]
-    test_index = pd.date_range(start=begin, periods=pred_days)
-    dates_all = train_data.index.append(test_index)
+    # begin = train_data.index[-1]
+    # test_index = pd.date_range(start=train_data['Date'][begin], periods=pred_days)
+    # dates_all = train_data.index.append(test_index)
 
     res_decay = minimize(eval_model_decay, initial_guess, bounds=bounds,
                          args=(train_data, population, False),
@@ -69,9 +69,9 @@ def fit_model(area_name,df, population,
     res = res_decay
 
     # Calculate the R_t values
-    t = np.arange(len(dates_all))
+    t = np.arange(len(train_data))
     R_0, t_hosp, t_crit, m, c, f, k, L = res.x
-    R_t = pd.Series(R_0 / (1 + (t / L) ** k), dates_all)
+    R_t = pd.Series(R_0 / (1 + (t / L) ** k), train_data.index)
 
     sus, exp, inf, rec, hosp, crit, deaths = sol.y
 
@@ -84,14 +84,14 @@ def fit_model(area_name,df, population,
         'CriticalCases': crit * population,
         'RecoveredCases': rec * population,
         'InfectiousCases': inf * population,
-        'Date': dates_all,
+        'Date': train_data['Date'],
         'CountryName': area_name,
         't_hosp': t_hosp,
         't_crit': t_crit,
         'm': m,
         'c': c,
         'f': f
-    }, index=dates_all)
+    })
 
     if make_plot:
         print(f'R: {res.x[0]:0.3f}, t_hosp: {res.x[1]:0.3f}, t_crit: {res.x[2]:0.3f}, '
