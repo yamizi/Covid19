@@ -47,7 +47,7 @@ def load_dataset():
     # prefix=""
     # google = pd.read_csv("./data/google.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)
     google = pd.read_csv("./dataset/features.csv", parse_dates=['Date']).drop(["Unnamed: 0"], axis=1)
-    countries = pd.read_csv(f"./data/{prefix}seirhcd.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)
+    countries = pd.read_csv(f"./data/seirhcd.csv", parse_dates=['Date']).drop(["Unnamed: 0"],axis=1)
 
     # google = pd.get_dummies(google,prefix="day_of_week", columns=["day_of_week"])
     google = pd.get_dummies(google,prefix="region", columns=["region"])

@@ -12,12 +12,25 @@ stages:
         - validate_features.py
         - dataset/features.csv  
     seirhcd_extraction:
-        cmd : python fit_experiment.py dataset/features.csv data/seirhcd.csv
-        deps:  
+        cmd: python fit_experiment.py dataset/features.csv data/seirhcd.csv
+        deps:
+        - features_val
         - dataset/features.csv
         - fit_experiment.py
         outs:
-        - data/seirhcd.csv     
+        - data/seirhcd.csv
+    mlp_training:
+        cmd: python model_training.py
+        deps:
+        - seirhcd_extraction
+        - model_training.py
+        - data/seirhcd.csv
+        - dataset/features.csv
+        model:
+        - model/mlp.save
+        - model/scaler.save
+        - model/features.csv
+        - model/metric.json
     # training:
     #   cmd: python train.py
     #   deps:
