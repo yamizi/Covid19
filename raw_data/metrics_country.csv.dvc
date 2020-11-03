@@ -1,0 +1,3 @@
+outs:
+- md5: d0cbc8aaffea379e40048990c88b1ca4
+  path: metrics_country.csv
