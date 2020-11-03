@@ -77,7 +77,7 @@ def get_output_name(folder, name, suffix, extension):
 
 
 def save_model(model, reports, y_std, scaler, x_columns, data, suffix):
-    folder = './models'
+    folder = './models-2'
     os.makedirs(folder, exist_ok=True)
 
     joblib.dump(model, get_output_name(folder, 'mlp', suffix, 'save'))

@@ -15,6 +15,7 @@ def prepare_mobility_features():
     """
     Retrieve google mobility data per countries
     :return: Dataframe containing mobility data per countries
+    
     """
     # download_mobility_data()
     mobility_csv = pd.read_csv(
