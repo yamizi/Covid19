@@ -16,7 +16,7 @@ def main(argv):
         'Date': [],
         'CountryName': []
     })
-    dataset_path = argv[0] or "./dataset/features.csv"
+    dataset_path = argv[0] or "./dataset/features.csv" 
     output_seirhcd_path = argv[1] or "./data/seirhcd.csv"
     dataset = pd.read_csv(dataset_path, parse_dates=['Date'])
     # dataset = pd.read_csv("./data/google.csv", parse_dates=['Date'])

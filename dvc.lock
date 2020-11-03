@@ -21,7 +21,7 @@ seirhcd_extraction:
   - path: dataset/features.csv
     md5: e53e8a99e2fd2a66c490c95a3db62864
   - path: fit_experiment.py
-    md5: 459c96b3bdeb1edbce842bfeb02eeabc
+    md5: 355e198c1579fd1425d4454247df2c15
   outs:
   - path: data/seirhcd.csv
-    md5: 7d245a42348ff00bc97b8434344d2fe8
+    md5: 3219a736391ff7127273b3848b69450f
