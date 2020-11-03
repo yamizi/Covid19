@@ -1,0 +1,23 @@
+stages:
+    features_extraction:
+      cmd: python feature_extraction.py
+      deps:
+        - raw_data/
+      outs:
+        - dataset/features.csv
+    # features_val:
+    #     cmd
+    #   metrics:
+    #     - performance.json
+    # training:
+    #   cmd: python train.py
+    #   deps:
+    #     - train.py
+    #     - features
+    #   outs:
+    #     - model.pkl
+    #   plots:
+    #     - logs.csv:
+    #         x: epoch
+    #         x_label: Epoch
+    #   meta: 'For deployment'

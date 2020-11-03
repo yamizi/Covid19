@@ -1,0 +1,8 @@
+features_extraction:
+  cmd: python feature_extraction.py
+  deps:
+  - path: raw_data/
+    md5: 792524431359050f576fa9115caa8d96.dir
+  outs:
+  - path: dataset/features.csv
+    md5: e53e8a99e2fd2a66c490c95a3db62864
