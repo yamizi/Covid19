@@ -9,8 +9,6 @@ models/*
 .idea
 data/new_seirhcd.csv
 
-dataset/features.csv
-
 models-2/features_random.csv
 
 models-2/mlp_random.save
