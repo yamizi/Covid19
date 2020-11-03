@@ -25,10 +25,10 @@ stages:
         - data/seirhcd.csv
         - dataset/features.csv
         outs :
-        - model/mlp.save
-        - model/scaler.save
-        - model/features.csv
-        - model/metric.json
+        - models/mlp_random.save
+        - models/scaler_random.save
+        - models/features_random.csv
+        - models/metrics_random.json
     # training:
     #   cmd: python train.py
     #   deps:

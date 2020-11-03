@@ -25,3 +25,21 @@ seirhcd_extraction:
   outs:
   - path: data/seirhcd.csv
     md5: 3219a736391ff7127273b3848b69450f
+mlp_training:
+  cmd: python model_taining.py
+  deps:
+  - path: data/seirhcd.csv
+    md5: 3219a736391ff7127273b3848b69450f
+  - path: dataset/features.csv
+    md5: e53e8a99e2fd2a66c490c95a3db62864
+  - path: model_taining.py
+    md5: 179832f8a5dda61256eba8d279193f35
+  outs:
+  - path: models/features_random.csv
+    md5: 0dbf676c01e912c66c2762cfc03fe1fd
+  - path: models/metrics_random.json
+    md5: 22a93bb7216fb5a9e1a9819cf0b2a918
+  - path: models/mlp_random.save
+    md5: 06a79fb28e382f8e7070b7db0f51be3a
+  - path: models/scaler_random.save
+    md5: 007e075228ca2c5b2fb01c45eb842539
