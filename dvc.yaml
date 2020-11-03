@@ -2,13 +2,22 @@ stages:
     features_extraction:
       cmd: python feature_extraction.py
       deps:
+        - feature_extraction.py
         - raw_data/
       outs:
         - dataset/features.csv
-    # features_val:
-    #     cmd
-    #   metrics:
-    #     - performance.json
+    features_val:
+        cmd: python validate_features.py dataset/features.csv
+        deps:
+        - validate_features.py
+        - dataset/features.csv  
+    seirhcd_extraction:
+        cmd : python fit_experiment.py dataset/features.csv data/seirhcd.csv
+        deps:  
+        - dataset/features.csv
+        - fit_experiment.py
+        outs:
+        - data/seirhcd.csv     
     # training:
     #   cmd: python train.py
     #   deps:

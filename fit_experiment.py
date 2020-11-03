@@ -16,7 +16,9 @@ def main(argv):
         'Date': [],
         'CountryName': []
     })
-    dataset = pd.read_csv("./dataset/features.csv", parse_dates=['Date'])
+    dataset_path = argv[0] or "./dataset/features.csv"
+    output_seirhcd_path = argv[1] or "./data/seirhcd.csv"
+    dataset = pd.read_csv(dataset_path, parse_dates=['Date'])
     # dataset = pd.read_csv("./data/google.csv", parse_dates=['Date'])
     dataset = dataset.drop(["Unnamed: 0"], axis=1)
 
@@ -30,8 +32,7 @@ def main(argv):
         print("Country ", c)
         out = fit_model(c, dataset, populations.get(c), make_plot=False)
         all_countries = all_countries.append(out)
-    prefix = "current"
-    all_countries.to_csv(f"./data/{prefix}_seirhcd.csv")
+    all_countries.to_csv(output_seirhcd_path)
 
 
 if __name__ == "__main__":
