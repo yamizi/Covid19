@@ -2,6 +2,7 @@
 *.pyc
 .vscode/*
 figures/*
+scenarios/*
 
 *.json
 *.npy

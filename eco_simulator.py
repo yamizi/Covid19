@@ -1,4 +1,4 @@
-import json, utils, joblib
+import json, joblib
 from helpers import seir
 from scipy.integrate import solve_ivp
 import pandas as pd
@@ -73,6 +73,12 @@ class EconomicSimulator(object):
         self.model_ipcn = joblib.load("./models/economic_impact/model_ipcn.save")
 
         self.economic_scaler = joblib.load("./models/economic_impact/scaler_econ.save")
+
+        joblib.dump(self.model_export, "./models/economic_impact/model_export.save")
+        joblib.dump(self.model_unemployment, "./models/economic_impact/model_unemployment.save")
+        joblib.dump(self.model_inflation, "./models/economic_impact/model_inflation.save")
+        joblib.dump(self.model_ipcn, "./models/economic_impact/model_ipcn.save")
+
 
     def build_df(self, measures_to_change: List[dict], end_date: str,
                  measure_values: List[dict] = None, change_date_values: List[str] = None, start_date:str=None) -> pd.DataFrame:
@@ -244,12 +250,16 @@ class EconomicSimulator(object):
             sector_df = Rt_sector[["Date", sector]]
             ## Normaliser le Rt avec la distribution nationale
             sector_df.columns = ["Date", "R"]
+
             sector_population = sectors_workers[sectors_workers["sector"]==sector].values[0][1]
+
             susceptible_factor = population_total["population"].min() / population_total["population"].max()
 
             cases =  pd.DataFrame(data={"ConfirmedCases":self.cases[sector], "Date":self.cases.index}, index=self.cases.index)
+
             cases["Date"] = pd.to_datetime(cases["Date"])
             sector_df["Date"] = pd.to_datetime(sector_df["Date"])
+
             sector_df = pd.merge(sector_df,cases, on="Date", how="left").fillna(0)
             sector_df["ConfirmedDeaths"] = 0 if deaths_per_sectors is None else deaths_per_sectors[sector]
 
@@ -338,6 +348,7 @@ class EconomicSimulator(object):
     def predict_economic(self, data):
         df = data.drop(["Date"], axis=1)
         X = self.economic_scaler.transform(df)
+
         inflation = self.model_inflation.predict(X)
         ipcn = self.model_ipcn.predict(X)
         unemploy = self.model_unemployment.predict(X)
@@ -365,7 +376,11 @@ class EconomicSimulator(object):
         population_total = pd.DataFrame(data={"population": df["population"], "date": df["Date"]}, index=df.index)
 
         simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date)
+
+
+        
         merged = pd.merge(simulation["ALL"], simulation["A"], suffixes=["_ALL", "_A"], on="Date")
+        
 
         for key in simulation.keys():
             if key!="ALL" and key!="A":
@@ -380,66 +395,63 @@ class EconomicSimulator(object):
         return merged_final
 
 
-# def run(dates=None,measures=None,values=None):
-#     sim = EconomicSimulator()
-#     if dates is None:
-#         dates = ["2020-08-15", "2020-08-30"]
-#     if measures is None:
-#         measures = [["b_be","b_fr"]]
-#     if values is None:
-#         values = [["close","close"]]
+def run(dates=None,measures=None,values=None):
+    sim = EconomicSimulator()
+    if dates is None:
+        dates = ["2020-08-15", "2020-08-30"]
+    if measures is None:
+        measures = [["b_be","b_fr"]]
+    if values is None:
+        values = [["close","close"]]
 
-#     end_date = "2020-12-15"
+    end_date = "2020-12-15"
 
-#     simulation = sim.run(dates, measures, values, end_date)
-#     #simulation["O"].plot(title="Sector O")
-#     #simulation["ALL"].plot(title="All sectors")
+    simulation = sim.run(dates, measures, values, end_date)
+    #simulation["O"].plot(title="Sector O")
+    #simulation["ALL"].plot(title="All sectors")
 
-#     return simulation
-
-# dt = ["2020-08-15"]
-# #run()
-# #run(measures = [["activity_restr"]],values = [["close"]])
-
-# #plt.show()
-# scenarios = []
-# measures_possibles = EconomicSimulator.possibile_inputs
-# nb_values = len(measures_possibles.keys())
-
-# combinations = []
-# values = []
-
-# max_scenarios = 50000
-
-# def iter(k, last_combinations=[], last_values=[]):
-#     for i in range(k, nb_values):
-#         ms, vs = list(measures_possibles.keys())[i], list(measures_possibles.values())[i]
-#         for v in vs:
-
-#             if len(combinations) > max_scenarios:
-#                 return
-
-#             last_c = last_combinations.copy()
-#             last_c.append(ms)
-#             last_v =  last_values.copy()
-#             last_v.append(v)
-
-#             if i+1<nb_values:
-#                 iter(i + 1, last_c, last_v)
-
-#             else:
-
-#                 if len(last_c)==nb_values:
-#                     dates = dt * len(last_v)
-#                     df = run(dates=dates, measures=[last_c], values=[last_v])
-#                     measures = {"dates": dates, "inputs": last_c, "values": last_v}
-#                     combinations.append(last_c)
-#                     values.append(last_v)
-#                     json.dump(measures, open("scenarios/{}.json".format(len(combinations)), "w"))
-#                     df.to_csv("scenarios/{}.csv".format(len(combinations)))
+    return simulation
 
 
-#     return
+def iter(k, last_combinations=[], last_values=[]):
+    for i in range(k, nb_values):
+        ms, vs = list(measures_possibles.keys())[i], list(measures_possibles.values())[i]
+        for v in vs:
 
-# iter(0)
-# print(len(combinations))
+            if len(combinations) > max_scenarios:
+                return
+
+            last_c = last_combinations.copy()
+            last_c.append(ms)
+            last_v =  last_values.copy()
+            last_v.append(v)
+
+            if i+1<nb_values:
+                iter(i + 1, last_c, last_v)
+            else:
+                if len(last_c)==nb_values:
+                    dates = dt * len(last_v)
+                    df = run(dates=dates, measures=[last_c], values=[last_v])
+                    measures = {"dates": dates, "inputs": last_c, "values": last_v}
+                    combinations.append(last_c)
+                    values.append(last_v)
+                    json.dump(measures, open("scenarios/{}.json".format(len(combinations)), "w"))
+                    df.to_csv("scenarios/{}.csv".format(len(combinations)), sep=';')
+
+    return
+
+
+        
+dt = ["2020-08-15"]
+#run()
+#run(measures = [["activity_restr"]],values = [["close"]])
+#plt.show()
+scenarios = []
+measures_possibles = EconomicSimulator.possibile_inputs
+nb_values = len(measures_possibles.keys())
+combinations = []
+values = []
+max_scenarios = 50
+
+iter(0)
+print(len(combinations))
