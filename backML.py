@@ -58,10 +58,6 @@ def predict():
 
     filetered_simulation_results = simulation_results[columuns_to_keep].reset_index()
 
-    filetered_simulation_results['SimulationCases_ALL_max'] = filetered_simulation_results['SimulationCases_ALL'] + filetered_simulation_results['SimulationCases_ALL'].var() 
-
-    print(simulation_results.columns)
-
     return jsonify({'df': filetered_simulation_results.to_dict(orient='records')})
 
 

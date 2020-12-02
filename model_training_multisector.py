@@ -5,6 +5,8 @@ from sklearn.linear_model import BayesianRidge
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn import preprocessing
 from sklearn.neural_network import MLPRegressor
+import numpy as np
+
 
 def split_data(data, by="random", on=None, feature_columns=None, target_columns = 'R'):
     feature_columns = utils.get_feature_columns() if feature_columns is None else feature_columns
@@ -93,8 +95,20 @@ def train_mlp(data, target_columns, split_by='random', split_on=None, output_suf
     scaler, X_train_scaled, X_test_scaled = scale_data(X_train, X_test)
 
     model, reports = find_best_model(X_train_scaled, y_train, X_test_scaled, y_test)
-    #reg, __ = find_best_bayesian_ridge(X_train, y_train)
-    #__, y_std = reg.predict(X_test, return_std=True)
+
+    # reg, __ = find_best_bayesian_ridge(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    std = np.std(y_pred)
+
+    print(X_test.shape)
+    print(y_pred.shape)
+    print(std)
+    exit()
+
+    
+
+
     y_std = pd.DataFrame(data=[])
 
     output_suffix = split_by if output_suffix == '' else output_suffix
