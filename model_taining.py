@@ -94,9 +94,11 @@ def train_mlp(data, split_by='random', split_on=None, output_suffix=''):
     scaler, X_train_scaled, X_test_scaled = scale_data(X_train, X_test)
 
     model, reports = find_best_model(X_train_scaled, y_train, X_test_scaled, y_test)
+
     reg, __ = find_best_bayesian_ridge(X_train, y_train)
 
     __, y_std = reg.predict(X_test, return_std=True)
+
 
     output_suffix = split_by if output_suffix == '' else output_suffix
     save_model(model, reports, y_std, scaler, list(X_train.columns), data, output_suffix)

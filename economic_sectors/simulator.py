@@ -351,19 +351,7 @@ class EconomicSimulator(object):
         return data
 
 
-
-    def run(self, dates, measures, values, end_date):
-        df, init_date = self.build_df(measures, end_date, values, dates)
-        columns = self.metrics["x_columns"]
-
-        X_lift = self.scaler.transform(df[columns])
-        y_lift = self.mlp_clf.predict(X_lift)
-        y_lift = np.clip(y_lift/2,0,2)
-
-        Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
-        Rt["Date"] = df["Date"]
-        population_total = pd.DataFrame(data={"population": df["population"], "date": df["Date"]}, index=df.index)
-
+    def run_all_simulation(self, Rt, population_total, init_date, df):
         simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date)
         merged = pd.merge(simulation["ALL"], simulation["A"], suffixes=["_ALL", "_A"], on="Date")
 
@@ -373,11 +361,51 @@ class EconomicSimulator(object):
 
         df["Date"] = pd.to_datetime(df["Date"])
         merged_final = pd.merge(merged, df, on="Date")
+
+
         merged_final = self.predict_economic(merged_final)
 
         merged_final.index = merged_final["Date"]
 
         return merged_final
+
+
+
+    def run(self, dates, measures, values, end_date):
+        df, init_date = self.build_df(measures, end_date, values, dates)
+        columns = self.metrics["x_columns"]
+
+        X_lift = self.scaler.transform(df[columns])
+        y_lift = self.mlp_clf.predict(X_lift)
+
+        y_lift = np.clip(y_lift/2,0,2)
+
+        Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
+        Rt_max, Rt_min = Rt.copy(), Rt.copy()
+        
+        # include the confidance interval uning Rt
+        std_peer_features = self.metrics['std_test']  
+        for model_output_feature in std_peer_features.keys():
+            yvar = np.power(std_peer_features[model_output_feature],0.5) 
+            Rt_max[model_output_feature] = np.clip(Rt[model_output_feature] + yvar.mean() / 2, 0, 2)
+            Rt_min[model_output_feature] = np.clip(Rt[model_output_feature] - yvar.mean() / 2, 0, 2)
+
+        Rt["Date"] = df["Date"]
+        Rt_min['Date'] = df['Date']
+        Rt_max['Date'] = df['Date']
+        population_total = pd.DataFrame(data={"population": df["population"], "date": df["Date"]}, index=df.index)
+
+        simulation_merged = self.run_all_simulation(Rt, population_total, init_date, df)
+        simulation_merged_min = self.run_all_simulation(Rt_min, population_total, init_date, df)
+        simulation_merged_max = self.run_all_simulation(Rt_max, population_total, init_date, df)
+
+        simulation_merged_max = simulation_merged_max.drop(columns=['Date'])
+
+        simulation_merged = pd.merge(simulation_merged, simulation_merged_max, suffixes=['','_max'], left_index=True, right_index=True)
+        simulation_merged = pd.merge(simulation_merged, simulation_merged_min, suffixes=['','_min'], left_index=True, right_index=True)
+
+
+        return simulation_merged
 
 
 # def run(dates=None,measures=None,values=None):

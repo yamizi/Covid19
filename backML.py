@@ -13,27 +13,13 @@ app = Flask(__name__, static_url_path="")
 CORS(app)
 
 
-"""
-possibile_inputs = {
-          "b_be": ["open", "close"],
-          "b_fr": ["open", "close"],
-          "b_de": ["open", "close"],
-          "schools_m" : ["open", "partial", "preventive_measure", "close"],
-          "public_gath":["yes", "no"],
-          "social_dist": ["yes", "no"],
-          "resp_gov_measure": ["yes", "no"],
-          "private_gath":[1000,0,5,10,20],
-          "parks_m":["yes","no"],
-          "travel_m":["yes", "no"],
-          "activity_restr":["open", "close", "mixed"]
-        }
-"""
-
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """
-    Will launch the simulation taking into account the economical indicdes.
+    """Will launch the simulation taking into account the economical indicdes.
+
+    Returns:
+        String: Json object ready to be parsed by the client.
     """
     print('[+] A simulation begins for Luxembourg')
     posted_data = request.json
@@ -51,14 +37,20 @@ def predict():
 
     simulation_results = simulator.run(dates, measures, values, end_date)
 
-    columuns_to_keep = ['SimulationCases_ALL', 'SimulationHospital_ALL', 
-                        'SimulationCritical_ALL', 'SimulationDeaths_ALL', 
-                        'SimulationInfectious_ALL', 'R_ALL',
-                        'inflation', 'ipcn',  'unemploy', 'export']
+    columuns_to_keep = ['SimulationCases_ALL', 'SimulationCases_ALL_min', 'SimulationCases_ALL_max',
+                        'SimulationHospital_ALL', 'SimulationHospital_ALL_min', 'SimulationHospital_ALL_max', 
+                        'SimulationCritical_ALL', 'SimulationCritical_ALL_min', 'SimulationCritical_ALL_max', 
+                        'SimulationDeaths_ALL', 'SimulationDeaths_ALL_min', 'SimulationDeaths_ALL_max', 
+                        'R_ALL', 'R_ALL_min', 'R_ALL_max',
+                        'inflation', 'inflation_min', 'inflation_max',
+                        'ipcn',  'ipcn_min', 'ipcn_max',
+                        'unemploy', 'unemploy_min', 'unemploy_max',
+                        'export', 'export_min', 'export_max']
 
-    filetered_simulation_results = simulation_results[columuns_to_keep].reset_index()
 
-    return jsonify({'df': filetered_simulation_results.to_dict(orient='records')})
+    filetered_simulation_results = simulation_results[columuns_to_keep]
+
+    return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
 
 
 @app.route('/', defaults={'path': ''})

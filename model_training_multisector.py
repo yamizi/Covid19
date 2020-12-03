@@ -6,6 +6,7 @@ from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn import preprocessing
 from sklearn.neural_network import MLPRegressor
 import numpy as np
+from tqdm import tqdm
 
 
 def split_data(data, by="random", on=None, feature_columns=None, target_columns = 'R'):
@@ -73,7 +74,7 @@ def get_output_name(folder, name, suffix, extension):
     return '{}/{}.{}'.format(folder, name, extension) if suffix == '' else '{}/{}_{}.{}'.format(folder, name, suffix, extension)
 
 
-def save_model(model, reports, y_std, scaler, x_columns, data, suffix):
+def save_model(model, reports, std_peer_features, scaler, x_columns, data, suffix):
     folder = './models'
     os.makedirs(folder, exist_ok=True)
 
@@ -81,7 +82,7 @@ def save_model(model, reports, y_std, scaler, x_columns, data, suffix):
     joblib.dump(scaler, get_output_name(folder, 'scaler', suffix, 'save'))
 
     with open(get_output_name(folder, 'metrics', suffix, 'json'), 'w') as fp:
-        json.dump({'perf':reports, 'std_test': list(y_std.values), 'x_columns':x_columns, 'hidden_layer_sizes': model.hidden_layer_sizes}, fp)
+        json.dump({'perf':reports, 'std_test': std_peer_features, 'x_columns':x_columns, 'hidden_layer_sizes': model.hidden_layer_sizes}, fp)
 
     data.to_csv(get_output_name(folder, 'features', suffix, 'csv'))
 
@@ -94,25 +95,19 @@ def train_mlp(data, target_columns, split_by='random', split_on=None, output_suf
     X_train, y_train, X_test, y_test = split_data(data, by=split_by, on=split_on, feature_columns=feature_columns, target_columns = target_columns)
     scaler, X_train_scaled, X_test_scaled = scale_data(X_train, X_test)
 
+    
     model, reports = find_best_model(X_train_scaled, y_train, X_test_scaled, y_test)
 
-    # reg, __ = find_best_bayesian_ridge(X_train, y_train)
-    y_pred = model.predict(X_test)
 
-    std = np.std(y_pred)
-
-    print(X_test.shape)
-    print(y_pred.shape)
-    print(std)
-    exit()
-
-    
-
-
-    y_std = pd.DataFrame(data=[])
+    print('[+] Compute y_std for each features')
+    features_std = {}
+    for target_column in tqdm(target_columns):
+        reg, _ = find_best_bayesian_ridge(X_train, y_train['ALL'])
+        _, y_std = reg.predict(X_test, return_std=True)
+        features_std[target_column] = list(y_std.values)
 
     output_suffix = split_by if output_suffix == '' else output_suffix
-    save_model(model, reports, y_std, scaler, list(X_train.columns), data, output_suffix)
+    save_model(model, reports, features_std, scaler, list(X_train.columns), data, output_suffix)
 
     return model, reports
 
