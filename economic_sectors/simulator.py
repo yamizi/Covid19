@@ -11,6 +11,8 @@ import joblib, json
 import json
 from matplotlib import pyplot as plt
 
+import multiprocessing as mp
+
 class EconomicSimulator(object):
 
     possibile_inputs = {
@@ -352,6 +354,8 @@ class EconomicSimulator(object):
 
 
     def run_all_simulation(self, Rt, population_total, init_date, df):
+
+
         simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date)
         merged = pd.merge(simulation["ALL"], simulation["A"], suffixes=["_ALL", "_A"], on="Date")
 
@@ -377,22 +381,25 @@ class EconomicSimulator(object):
 
         X_lift = self.scaler.transform(df[columns])
         y_lift = self.mlp_clf.predict(X_lift)
-
         y_lift = np.clip(y_lift/2,0,2)
 
         Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
+        # Copy DataFrame aiming to include the minimal and maximal.
         Rt_max, Rt_min = Rt.copy(), Rt.copy()
         
-        # include the confidance interval uning Rt
+        # include the confidance interval using Rt
         std_peer_features = self.metrics['std_test']  
         for model_output_feature in std_peer_features.keys():
             yvar = np.power(std_peer_features[model_output_feature],0.5) 
             Rt_max[model_output_feature] = np.clip(Rt[model_output_feature] + yvar.mean() / 2, 0, 2)
             Rt_min[model_output_feature] = np.clip(Rt[model_output_feature] - yvar.mean() / 2, 0, 2)
 
+        # Passing dates to dataframe
         Rt["Date"] = df["Date"]
         Rt_min['Date'] = df['Date']
         Rt_max['Date'] = df['Date']
+
+        # Make a simple dataframe for the polulation 
         population_total = pd.DataFrame(data={"population": df["population"], "date": df["Date"]}, index=df.index)
 
         simulation_merged = self.run_all_simulation(Rt, population_total, init_date, df)
@@ -403,7 +410,6 @@ class EconomicSimulator(object):
 
         simulation_merged = pd.merge(simulation_merged, simulation_merged_max, suffixes=['','_max'], left_index=True, right_index=True)
         simulation_merged = pd.merge(simulation_merged, simulation_merged_min, suffixes=['','_min'], left_index=True, right_index=True)
-
 
         return simulation_merged
 

@@ -5,14 +5,13 @@ import joblib
 import pandas as pd
 import hashlib
 import re
+from datetime import datetime
 
 from flask_cors import CORS
 from economic_sectors.simulator import EconomicSimulator
 
 app = Flask(__name__, static_url_path="")
 CORS(app)
-
-
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -21,6 +20,9 @@ def predict():
     Returns:
         String: Json object ready to be parsed by the client.
     """
+
+
+    start = datetime.now()
     print('[+] A simulation begins for Luxembourg')
     posted_data = request.json
 
@@ -49,6 +51,11 @@ def predict():
 
 
     filetered_simulation_results = simulation_results[columuns_to_keep]
+
+    end = datetime.now()
+
+    print('[+] Execution Time:', end-start)
+
 
     return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
 
