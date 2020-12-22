@@ -1,5 +1,5 @@
 import json, utils, joblib
-from helpers import seir
+from seir_helpers import seir
 from scipy.integrate import solve_ivp
 import pandas as pd
 import numpy as np

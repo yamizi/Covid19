@@ -45,6 +45,8 @@ def pretty_name(x):
         return 'Grocery & Pharmacies'
     elif measure == 'workplace':
         return 'Workplace'
+    elif measure == 'S1_School closing':
+        return 'Schools'
     elif measure == 'parks':
         return 'Parks'
     elif measure == 'transit_stations':
