@@ -23,7 +23,7 @@ from simulations import simulate, simulate_constantRt
 
 country_name = "Luxembourg"
 SEED = random.randint(0,1000)
-current_dataset_date = date(2020,5,10).strftime("%Y_%m_%d")
+current_dataset_date = date(2020,4,24).strftime("%Y_%m_%d")
 current_dataset_date = "fixed"
 
 folder = "./models/seirhcd/{}".format(current_dataset_date)

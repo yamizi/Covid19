@@ -65,6 +65,19 @@ def predict_reborn():
     dates = posted_data['dates']
     values = posted_data['values']
 
+
+    # if the user enter no measure in inputs,
+    # We should make predictions on the worst case.
+    if len(measures) == 0:
+        measures  = [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 
+        'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']]
+        values = [['open', 'open', 'open', 'open', 'yes', 1000,
+        'yes', 'yes', 'close', 'yes']]
+
+        dates = None
+        
+
+
     if('date_end' in posted_data.keys()):
         end_date = posted_data['date_end']
     else:

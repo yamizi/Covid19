@@ -77,7 +77,8 @@ class EconomicSimulator(object):
         self.economic_scaler = joblib.load("./models/economic_impact/scaler_econ.save")
 
     def build_df(self, measures_to_change: List[dict], end_date: str,
-                 measure_values: List[dict] = None, change_date_values: List[str] = None, start_date:str=None) -> pd.DataFrame:
+                 measure_values: List[dict] = None, change_date_values: List[str] = None, 
+                 start_date:str=None) -> pd.DataFrame:
 
         df = self.initial_df
         columns = [e for e in df.columns if "_" not in e]
@@ -87,9 +88,14 @@ class EconomicSimulator(object):
         if start_date is not None:
             start_date = pd.to_datetime(start_date, yearfirst=True)
             df = df[df["Date"] > start_date]
-
+        
         end_date = pd.to_datetime(end_date, yearfirst=True)
-        change_dates = [pd.to_datetime(e, yearfirst=True) for e in change_date_values]
+
+        if change_date_values is not None and len(change_date_values) == len(measures_to_change[0]):
+            change_dates = [pd.to_datetime(e, yearfirst=True) for e in change_date_values]
+        else:
+            change_dates = [df["Date"].head(1).dt.date.values[0]] * len(measures_to_change[0])
+            change_dates = [pd.to_datetime(e, yearfirst=True) for e in change_dates]
 
         init_date = df["Date"].tail(1).dt.date.values[0]
         for k, measure_to_change in enumerate(measures_to_change):
@@ -152,6 +158,7 @@ class EconomicSimulator(object):
     def update_ML_params(self,obj):
         # Activity Resctrictions
 
+
         obj["population"] = self.update_population(obj["b_be"],obj["b_fr"],obj["b_de"],obj["activity_restr"])
 
         if obj["resp_gov_measure"] == 'yes':
@@ -178,7 +185,6 @@ class EconomicSimulator(object):
             obj["C8"] = 0
             obj["C5"] = 0.5
             obj["transit"] = self.initial_df['transit'].min()
-
         else:
             obj["C8"] = 1
             obj["C5"] = 1
@@ -191,6 +197,7 @@ class EconomicSimulator(object):
             obj["parks"] = min(self.initial_df['parks'])
 
         # Schools
+        # Is Preventive measure missing ? 
         if obj["schools_m"] == 'open':
             obj["C1"] = 3
         elif obj["schools_m"] == 'close':
@@ -206,6 +213,8 @@ class EconomicSimulator(object):
         else:
             obj["C3"] = 0
 
+
+        # Where are conditions for {10, 20} ? 
         if obj["private_gath"] == 0:
             obj["C4"] = 1
         elif obj["private_gath"] == 1000:
@@ -376,6 +385,7 @@ class EconomicSimulator(object):
 
 
     def run(self, dates, measures, values, end_date):
+
         df, init_date = self.build_df(measures, end_date, values, dates)
         columns = self.metrics["x_columns"]
 
