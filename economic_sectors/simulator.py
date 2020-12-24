@@ -81,6 +81,7 @@ class EconomicSimulator(object):
                  start_date:str=None) -> pd.DataFrame:
 
         df = self.initial_df
+
         columns = [e for e in df.columns if "_" not in e]
         if "Date" not in columns:
             df["Date"] = df.index
@@ -109,9 +110,16 @@ class EconomicSimulator(object):
                 vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values[0]
 
                 for i, measure in enumerate(measure_to_change):
+                    print(measure)
+                    print(obj[measure])
+                    print(current_date)
+
                     change = current_date >= change_dates[i]
                     if change:
                         obj[measure] = vals[i]
+
+                    print(obj[measure])
+                    # exit()
 
                 obj = self.update_ML_params(obj)
                 country_change = country_change.append(obj, ignore_index=True)
@@ -158,7 +166,7 @@ class EconomicSimulator(object):
     def update_ML_params(self,obj):
         # Activity Resctrictions
 
-
+        print(obj['C4'])
         obj["population"] = self.update_population(obj["b_be"],obj["b_fr"],obj["b_de"],obj["activity_restr"])
 
         if obj["resp_gov_measure"] == 'yes':
@@ -243,7 +251,11 @@ class EconomicSimulator(object):
             obj["C2"] = 0
             obj["C6"] = 0
             obj["C7"] = 0
-
+        
+        # print(obj["private_gath"])
+        # print(obj['C4'])
+        # print('********')
+        # exit()
         return obj
 
     def simulate(self, Rt_sector, population_total, deaths_per_sectors=None, init_date=None ):

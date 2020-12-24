@@ -49,6 +49,9 @@ def predict():
     return jsonify({'path': seed, 'df': df})
 
 
+
+
+
 @app.route('/predict_reborn', methods=['POST'])
 def predict_reborn():
     """Will launch the simulation taking into account the economical indicdes.
@@ -65,18 +68,27 @@ def predict_reborn():
     dates = posted_data['dates']
     values = posted_data['values']
 
+    print(measures)
+    print(dates)
+    print(values)
 
     # if the user enter no measure in inputs,
     # We should make predictions on the worst case.
-    if len(measures) == 0:
-        measures  = [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 
-        'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']]
+    if len(measures[0]) == 0:
+        measures = [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath',
+                     'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']]
         values = [['open', 'open', 'open', 'open', 'yes', 1000,
-        'yes', 'yes', 'close', 'yes']]
+                   'yes', 'yes', 'close', 'yes']]
 
         dates = None
-        
+    
 
+
+
+    print(measures)
+    print(dates)
+    print(values)
+    # exit()
 
     if('date_end' in posted_data.keys()):
         end_date = posted_data['date_end']
