@@ -7,7 +7,7 @@ import joblib
 import pandas as pd
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask_cors import CORS
 from simulations import simulate
@@ -59,45 +59,54 @@ def predict_reborn():
     Returns:
         String: Json object ready to be parsed by the client.
     """
-
-    start = datetime.now()
-    print('[+] A simulation begins for Luxembourg')
     posted_data = request.json
+
+    # posted_data = {'country_name': 'Luxembourg', 
+    # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']], 
+    # 'dates': ['2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09'], 
+    # 'values': [['open', 'open', 'open', 'open', None, 0, 'yes', None, 'mixed', None]]
+    # }
 
     measures = posted_data['measures']
     dates = posted_data['dates']
     values = posted_data['values']
 
-    print(measures)
-    print(dates)
-    print(values)
-
-    # if the user enter no measure in inputs,
+    # If the user enter no measure in inputs,
     # We should make predictions on the worst case.
     if len(measures[0]) == 0:
         measures = [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath',
                      'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']]
         values = [['open', 'open', 'open', 'open', 'yes', 1000,
-                   'yes', 'yes', 'close', 'yes']]
+                   'yes', 'yes', 'open', 'yes']]
 
         dates = None
-    
-
-
-
-    print(measures)
-    print(dates)
-    print(values)
-    # exit()
 
     if('date_end' in posted_data.keys()):
         end_date = posted_data['date_end']
+    elif(dates is not None):
+        end_date = datetime.strptime(dates[0], '%Y-%m-%d')
+        init_date = end_date - timedelta(days=90) 
+        end_date = end_date + timedelta(days=90) 
     else:
-        end_date = "2020-12-15"
+        end_date = datetime.now()
+        end_date = end_date + timedelta(days=90) 
+        init_date = datetime.now() - timedelta(days=90) 
+
+    end_date = end_date.strftime('%Y-%m-%d')
+    init_date = init_date.strftime('%Y-%m-%d')
+
+
+    print('*** [+] Informations [+] ***')
+    print(measures)
+    print(values)
+    print(dates)
+    print(init_date)
+    print(end_date)
+    # exit()
 
     simulator = EconomicSimulator()
 
-    simulation_results = simulator.run(dates, measures, values, end_date)
+    simulation_results = simulator.run(dates, measures, values, end_date, init_date=init_date)
 
     columuns_to_keep = ['SimulationCases_ALL', 'SimulationCases_ALL_min', 'SimulationCases_ALL_max',
                         'SimulationHospital_ALL', 'SimulationHospital_ALL_min', 'SimulationHospital_ALL_max',
@@ -111,12 +120,9 @@ def predict_reborn():
 
     filetered_simulation_results = simulation_results[columuns_to_keep]
 
-    end = datetime.now()
-
-    print('[+] Execution Time:', end-start)
 
     return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
-
+     
 
 @app.route('/sims/rate/<path:sim_id>')
 def send_reproduction_plots(sim_id):
@@ -162,3 +168,4 @@ def catch_all(path):
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=8080)
+    # predict_reborn()

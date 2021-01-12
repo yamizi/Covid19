@@ -21,12 +21,12 @@ class EconomicSimulator(object):
           "b_de": ["open", "close"],
           "schools_m" : ["open", "partial", "preventive_measure", "close"],
           "public_gath":["yes", "no"],
-          "social_dist": ["yes", "no"],
           "resp_gov_measure": ["yes", "no"],
           "private_gath":[1000,0,5,10,20],
           "parks_m":["yes","no"],
           "travel_m":["yes", "no"],
           "activity_restr":["open", "close", "mixed"],
+          "social_dist": ["yes", "no"],
         }
 
 
@@ -78,7 +78,7 @@ class EconomicSimulator(object):
 
     def build_df(self, measures_to_change: List[dict], end_date: str,
                  measure_values: List[dict] = None, change_date_values: List[str] = None, 
-                 start_date:str=None) -> pd.DataFrame:
+                 start_date:str=None, init_date_p:str=None) -> pd.DataFrame:
 
         df = self.initial_df
 
@@ -89,7 +89,7 @@ class EconomicSimulator(object):
         if start_date is not None:
             start_date = pd.to_datetime(start_date, yearfirst=True)
             df = df[df["Date"] > start_date]
-        
+
         end_date = pd.to_datetime(end_date, yearfirst=True)
 
         if change_date_values is not None and len(change_date_values) == len(measures_to_change[0]):
@@ -98,11 +98,56 @@ class EconomicSimulator(object):
             change_dates = [df["Date"].head(1).dt.date.values[0]] * len(measures_to_change[0])
             change_dates = [pd.to_datetime(e, yearfirst=True) for e in change_dates]
 
-        init_date = df["Date"].tail(1).dt.date.values[0]
-        for k, measure_to_change in enumerate(measures_to_change):
-            country_change = df.copy()
-            current_date = init_date
+        if init_date_p is None:
+            init_date = df["Date"].tail(1).dt.date.values[0]
+        else:
+            init_date = pd.to_datetime(init_date_p)
 
+
+
+        for k, measure_to_change in enumerate(measures_to_change):
+            # Initialise the dataset, 
+            # `update_seir` needs 14 days before `init_date` to do his computations
+            seir_day_offset = 14 
+
+            df_begin_date = init_date - timedelta(days=seir_day_offset)
+            country_change = df[df['Date'] >= df_begin_date]
+            country_change = country_change[country_change['Date'] <= init_date]
+
+            # There is some duplicates in the dataset, 
+            # (e.g : `2020-05-16`) (A strange thing is, for the same day, the value of `N` moves...)
+            # Here I will keep the last sample.
+            country_change = country_change.drop_duplicates(subset='Date', keep='last')
+
+            if country_change.shape[0] == 0:
+                # If the shape is 0, there is no data to begin with.
+                # So we will take the last sample we have is our dataset,
+                # and extend this sample for 14 days 
+                country_change = df.tail(1)
+
+                country_change = pd.concat([country_change]*(seir_day_offset+1), ignore_index=True)
+                dates = pd.date_range(start=df_begin_date, end=init_date)
+                
+                country_change['Date'] = dates
+                country_change.index = dates
+
+            elif country_change.shape[0] < seir_day_offset:
+                # If the shape is higher than 0, There is some data but not enough
+                # So, we extend the last sample for missing days.
+                missing_shape = seir_day_offset - country_change.shape[0] +1
+                
+                country_change = country_change.append([country_change.tail(1)]*missing_shape)
+                dates = pd.date_range(start=df_begin_date, end=init_date)
+                
+                country_change.index = dates
+                country_change['Date'] = dates
+
+            current_date = pd.to_datetime(init_date)
+
+            # print(country_change)
+            # print(init_date)
+            # exit()
+            
             while current_date < end_date:
                 current_date = current_date + timedelta(days=1)
                 obj = country_change.tail(1).to_dict('records')[0]
@@ -110,23 +155,23 @@ class EconomicSimulator(object):
                 vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values[0]
 
                 for i, measure in enumerate(measure_to_change):
-                    print(measure)
-                    print(obj[measure])
-                    print(current_date)
-
                     change = current_date >= change_dates[i]
                     if change:
                         obj[measure] = vals[i]
 
-                    print(obj[measure])
-                    # exit()
-
                 obj = self.update_ML_params(obj)
+
                 country_change = country_change.append(obj, ignore_index=True)
+
+            if init_date_p is not None:
+                tmp_init =  pd.to_datetime(init_date_p) - timedelta(days=seir_day_offset)
+                country_change = country_change[country_change['Date'] >= pd.to_datetime(tmp_init)]
+
 
             all_columns_extended = country_change.drop(self.possibile_inputs,axis=1).fillna(method="pad").fillna(method="backfill")
             smoothing_days = [5, 10, 15]
             all_columns_extended = extend_features_with_means(all_columns_extended, columns, smoothing_days)
+            
             #country_change = pd.get_dummies(country_change, prefix="day_of_week", columns=["day_of_week"])
             #country_change = update_mean(country_change.fillna(method="pad")).fillna(method="bfill")
 
@@ -166,7 +211,6 @@ class EconomicSimulator(object):
     def update_ML_params(self,obj):
         # Activity Resctrictions
 
-        print(obj['C4'])
         obj["population"] = self.update_population(obj["b_be"],obj["b_fr"],obj["b_de"],obj["activity_restr"])
 
         if obj["resp_gov_measure"] == 'yes':
@@ -251,11 +295,6 @@ class EconomicSimulator(object):
             obj["C2"] = 0
             obj["C6"] = 0
             obj["C7"] = 0
-        
-        # print(obj["private_gath"])
-        # print(obj['C4'])
-        # print('********')
-        # exit()
         return obj
 
     def simulate(self, Rt_sector, population_total, deaths_per_sectors=None, init_date=None ):
@@ -281,7 +320,7 @@ class EconomicSimulator(object):
                 init_date = dates[15]
 
             simulation = self.update_seir(sector_df, active_date=init_date, e_date=dates[-1],
-                                     population=sector_population*susceptible_factor)
+                                          population=sector_population*susceptible_factor)
             #simulation.index = simulation["Date"]
             #simulation = simulation.drop(["Date"], axis=1)
             simulations[sector] = simulation
@@ -291,7 +330,8 @@ class EconomicSimulator(object):
 
     def update_seir(self, df, active_date, e_date, population):
         active_date = pd.to_datetime(active_date)
-        cols = list(df.columns)
+
+        # cols = list(df.columns)
         # t_hosp=7, t_crit=14, m_a=0.7, c_a=0.1, f_a=0.3
         params = [7, 10, 0.8, 0.3, 0.3]
         params.append(True)
@@ -300,23 +340,19 @@ class EconomicSimulator(object):
         ref_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-7))]
         inf_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-14))]
 
+
         # Herd immunity is assumed at 70%
         N = population * 0.7
-        n_infected = ref_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedCases'].iloc[
-            0]  # data['InfectiousCases'].iloc[0]
-        n_exposed = data['ConfirmedCases'].iloc[0] - ref_data['ConfirmedCases'].iloc[
-            0]  # data['ExposedCases'].iloc[0]
+        n_infected = ref_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedCases'].iloc[0]  # data['InfectiousCases'].iloc[0]
+        n_exposed = data['ConfirmedCases'].iloc[0] - ref_data['ConfirmedCases'].iloc[0]  # data['ExposedCases'].iloc[0]
         n_hospitalized = (1 - params[2]) * n_exposed  # data['HospitalizedCases'].iloc[0]*1.5
         n_exposed = params[2] * n_exposed
         n_critical = (params[3]) * n_hospitalized  # data['CriticalCases'].iloc[0]*1.5
-        n_recovered = inf_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedDeaths'].iloc[
-            0]  # data['RecoveredCases'].iloc[0]
+        n_recovered = inf_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedDeaths'].iloc[0]  # data['RecoveredCases'].iloc[0]
         n_deaths = data['ConfirmedDeaths'].iloc[0]
         # S, E, I, R, H, C, D
         initial_state = [(N - n_infected) / N, n_exposed / N, n_infected / N, n_recovered / N, n_hospitalized / N,
                          n_critical / N, n_deaths / N]
-
-
 
         R_t = data['R'].values
 
@@ -376,7 +412,6 @@ class EconomicSimulator(object):
 
     def run_all_simulation(self, Rt, population_total, init_date, df):
 
-
         simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date)
         merged = pd.merge(simulation["ALL"], simulation["A"], suffixes=["_ALL", "_A"], on="Date")
 
@@ -396,9 +431,10 @@ class EconomicSimulator(object):
 
 
 
-    def run(self, dates, measures, values, end_date):
+    def run(self, dates, measures, values, end_date, init_date=None):
+        df, init_date = self.build_df(measures, end_date, values, dates, init_date_p=init_date)
 
-        df, init_date = self.build_df(measures, end_date, values, dates)
+
         columns = self.metrics["x_columns"]
 
         X_lift = self.scaler.transform(df[columns])
