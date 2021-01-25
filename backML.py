@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 
 from flask_cors import CORS
 from simulations import simulate
+import matplotlib.pyplot as plt
 
 base_folder = "./plots/simulations"
 
@@ -19,9 +20,12 @@ app = Flask(__name__, static_url_path="")
 CORS(app)
 
 
+DATE_PAST_SHIFT = 15
+SEIR_SHIFT = 14
+DATE_FUTURE_SHIFT = 300
+
 @app.route('/predict', methods=['POST'])
 def predict():
-    print('[+] WITHOUT ECONOMICAL INDICES')
     json_ = request.json
 
     a = json.dumps(json_, sort_keys=True).encode("utf-8")
@@ -49,6 +53,25 @@ def predict():
     return jsonify({'path': seed, 'df': df})
 
 
+@app.route('/reborn_api_limit', methods=['POST'])
+def get_limit_date():
+    """Beacause the dataset have some limits in terms of time,
+    Prediction will not be accurate... To solve this problem we must 
+    add a maximum date for the user interface...
+
+    Returns:
+        Object: An object that contains the maximum date the user can ask.
+    """
+    simulator = EconomicSimulator()
+    min_date, max_date = simulator.get_maximum_date() 
+
+    user_min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
+    user_max_date = max_date + timedelta(days=DATE_PAST_SHIFT)
+
+    return jsonify({'min_date': user_min_date, 
+                    'max_date': user_max_date })
+
+
 
 
 
@@ -63,8 +86,8 @@ def predict_reborn():
 
     # posted_data = {'country_name': 'Luxembourg', 
     # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']], 
-    # 'dates': ['2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09', '2020-06-09'], 
-    # 'values': [['open', 'open', 'open', 'open', None, 0, 'yes', None, 'mixed', None]]
+    # 'dates': ['2020-08-06'],
+    # 'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes']]
     # }
 
     measures = posted_data['measures']
@@ -78,30 +101,28 @@ def predict_reborn():
                      'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']]
         values = [['open', 'open', 'open', 'open', 'yes', 1000,
                    'yes', 'yes', 'open', 'yes']]
-
         dates = None
 
     if('date_end' in posted_data.keys()):
         end_date = posted_data['date_end']
     elif(dates is not None):
         end_date = datetime.strptime(dates[0], '%Y-%m-%d')
-        init_date = end_date - timedelta(days=90) 
-        end_date = end_date + timedelta(days=90) 
+        init_date = end_date - timedelta(days=DATE_PAST_SHIFT) 
+        end_date = end_date + timedelta(days=DATE_FUTURE_SHIFT) 
     else:
         end_date = datetime.now()
-        end_date = end_date + timedelta(days=90) 
-        init_date = datetime.now() - timedelta(days=90) 
+        init_date = datetime.now() - timedelta(days=DATE_PAST_SHIFT) 
+        end_date = end_date + timedelta(days=DATE_FUTURE_SHIFT) 
 
     end_date = end_date.strftime('%Y-%m-%d')
     init_date = init_date.strftime('%Y-%m-%d')
 
-
-    print('*** [+] Informations [+] ***')
-    print(measures)
-    print(values)
-    print(dates)
-    print(init_date)
-    print(end_date)
+    # print('*** [+] Informations [+] ***')
+    # print(measures)
+    # print(values)
+    # print(dates)
+    # print(init_date)
+    # print(end_date)
     # exit()
 
     simulator = EconomicSimulator()
@@ -120,6 +141,13 @@ def predict_reborn():
 
     filetered_simulation_results = simulation_results[columuns_to_keep]
 
+    # filetered_simulation_results[['SimulationCases_ALL']].plot()
+    # plt.grid()
+
+    # filetered_simulation_results[['SimulationDeaths_ALL']].plot()
+    # plt.grid()
+
+    # plt.show()
 
     return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
      
@@ -169,3 +197,4 @@ def catch_all(path):
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=8080)
     # predict_reborn()
+    # get_limit_date()

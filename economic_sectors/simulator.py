@@ -9,7 +9,7 @@ from datetime import timedelta, datetime
 from utils import extend_features_with_means
 import joblib, json
 import json
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 
 import multiprocessing as mp
 
@@ -43,7 +43,8 @@ class EconomicSimulator(object):
 
         population = pd.read_excel(
             '{}/PJG397_Covid19_daily_workSector_Residents_IGSS.xlsx'.format(self.base_path),"Total amount of workers",usecols=[0,1,2], names=["sector","label", "pop"])
-        self.sectors_population = population.append({"sector": "ALL", "label":"Toutes activités","pop": population["pop"].sum()}, ignore_index=True)
+        self.sectors_population = population.append({"sector": "ALL", "label":"Toutes activités",
+                                                    "pop": population["pop"].sum()}, ignore_index=True)
 
 
         if initial_dataframe is None and country=="luxembourg":
@@ -76,6 +77,19 @@ class EconomicSimulator(object):
 
         self.economic_scaler = joblib.load("./models/economic_impact/scaler_econ.save")
 
+    def get_maximum_date(self):
+        """To Define the maximum date the end-user can ask.
+
+        Returns:
+            Pandas.datetime: The maximum Dataset Date.
+        """
+        min_date = self.initial_df.head(1).index.date[0]
+        max_date  = self.initial_df.tail(1).index.date[0]
+
+
+        return min_date, max_date
+        
+
     def build_df(self, measures_to_change: List[dict], end_date: str,
                  measure_values: List[dict] = None, change_date_values: List[str] = None, 
                  start_date:str=None, init_date_p:str=None) -> pd.DataFrame:
@@ -85,6 +99,11 @@ class EconomicSimulator(object):
         columns = [e for e in df.columns if "_" not in e]
         if "Date" not in columns:
             df["Date"] = df.index
+
+        # There is some duplicates in the dataset, 
+        # (e.g : `2020-05-16`) (A strange thing is, for the same day, the value of `N` moves...)
+        # Here I will keep the last sample.
+        df = df.drop_duplicates(subset='Date', keep='last')
 
         if start_date is not None:
             start_date = pd.to_datetime(start_date, yearfirst=True)
@@ -111,49 +130,39 @@ class EconomicSimulator(object):
             seir_day_offset = 14 
 
             df_begin_date = init_date - timedelta(days=seir_day_offset)
-            country_change = df[df['Date'] >= df_begin_date]
-            country_change = country_change[country_change['Date'] <= init_date]
-
-            # There is some duplicates in the dataset, 
-            # (e.g : `2020-05-16`) (A strange thing is, for the same day, the value of `N` moves...)
-            # Here I will keep the last sample.
-            country_change = country_change.drop_duplicates(subset='Date', keep='last')
+            country_change = df.loc[df_begin_date: init_date]
 
             if country_change.shape[0] == 0:
+                print('@@@@@@@@@@@@ SHAPE == 0')
                 # If the shape is 0, there is no data to begin with.
                 # So we will take the last sample we have is our dataset,
                 # and extend this sample for 14 days 
                 country_change = df.tail(1)
-
                 country_change = pd.concat([country_change]*(seir_day_offset+1), ignore_index=True)
                 dates = pd.date_range(start=df_begin_date, end=init_date)
                 
                 country_change['Date'] = dates
                 country_change.index = dates
 
-            elif country_change.shape[0] < seir_day_offset:
+            elif country_change.shape[0] < seir_day_offset +1:
+                print('@@@@@@@@@@@@ SHAPE < 0 (', country_change.shape[0],')')
                 # If the shape is higher than 0, There is some data but not enough
                 # So, we extend the last sample for missing days.
-                missing_shape = seir_day_offset - country_change.shape[0] +1
-                
-                country_change = country_change.append([country_change.tail(1)]*missing_shape)
+                country_change = df.tail(1)
+                country_change = pd.concat([country_change]*(seir_day_offset+1), ignore_index=True)
                 dates = pd.date_range(start=df_begin_date, end=init_date)
                 
-                country_change.index = dates
                 country_change['Date'] = dates
+                country_change.index = dates
 
             current_date = pd.to_datetime(init_date)
 
-            # print(country_change)
-            # print(init_date)
-            # exit()
-            
             while current_date < end_date:
                 current_date = current_date + timedelta(days=1)
                 obj = country_change.tail(1).to_dict('records')[0]
                 obj["Date"] = current_date
                 vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values[0]
-
+                
                 for i, measure in enumerate(measure_to_change):
                     change = current_date >= change_dates[i]
                     if change:
@@ -161,13 +170,8 @@ class EconomicSimulator(object):
 
                 obj = self.update_ML_params(obj)
 
-                country_change = country_change.append(obj, ignore_index=True)
-
-            if init_date_p is not None:
-                tmp_init =  pd.to_datetime(init_date_p) - timedelta(days=seir_day_offset)
-                country_change = country_change[country_change['Date'] >= pd.to_datetime(tmp_init)]
-
-
+                country_change = country_change.append(obj, ignore_index=True)                
+                
             all_columns_extended = country_change.drop(self.possibile_inputs,axis=1).fillna(method="pad").fillna(method="backfill")
             smoothing_days = [5, 10, 15]
             all_columns_extended = extend_features_with_means(all_columns_extended, columns, smoothing_days)
@@ -309,7 +313,9 @@ class EconomicSimulator(object):
             sector_population = sectors_workers[sectors_workers["sector"]==sector].values[0][1]
             susceptible_factor = population_total["population"].min() / population_total["population"].max()
 
-            cases =  pd.DataFrame(data={"ConfirmedCases":self.cases[sector], "Date":self.cases.index}, index=self.cases.index)
+            cases =  pd.DataFrame(data={"ConfirmedCases":self.cases[sector], "Date":self.cases.index}, 
+                                  index=self.cases.index)
+
             cases["Date"] = pd.to_datetime(cases["Date"])
             sector_df["Date"] = pd.to_datetime(sector_df["Date"])
             sector_df = pd.merge(sector_df,cases, on="Date", how="left").fillna(0)
@@ -340,7 +346,6 @@ class EconomicSimulator(object):
         ref_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-7))]
         inf_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-14))]
 
-
         # Herd immunity is assumed at 70%
         N = population * 0.7
         n_infected = ref_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedCases'].iloc[0]  # data['InfectiousCases'].iloc[0]
@@ -351,8 +356,8 @@ class EconomicSimulator(object):
         n_recovered = inf_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedDeaths'].iloc[0]  # data['RecoveredCases'].iloc[0]
         n_deaths = data['ConfirmedDeaths'].iloc[0]
         # S, E, I, R, H, C, D
-        initial_state = [(N - n_infected) / N, n_exposed / N, n_infected / N, n_recovered / N, n_hospitalized / N,
-                         n_critical / N, n_deaths / N]
+        initial_state = [(N - n_infected) / N, n_exposed / N, n_infected / N, n_recovered / N, 
+                          n_hospitalized / N, n_critical / N, n_deaths / N]
 
         R_t = data['R'].values
 
@@ -367,6 +372,9 @@ class EconomicSimulator(object):
         max_days = int(max_days)
         sol = solve_ivp(seir.model, [0, max_days], initial_state, args=args, t_eval=np.arange(0, max_days))
         sus, exp, inf, rec, hosp, crit, deaths = sol.y
+
+
+        print(sol.message)
 
         y_pred_cases = np.clip(inf + rec + hosp + crit + deaths, 0, np.inf) * population
         y_pred_critic = np.clip(crit, 0, np.inf) * population
@@ -422,7 +430,6 @@ class EconomicSimulator(object):
         df["Date"] = pd.to_datetime(df["Date"])
         merged_final = pd.merge(merged, df, on="Date")
 
-
         merged_final = self.predict_economic(merged_final)
 
         merged_final.index = merged_final["Date"]
@@ -432,8 +439,8 @@ class EconomicSimulator(object):
 
 
     def run(self, dates, measures, values, end_date, init_date=None):
-        df, init_date = self.build_df(measures, end_date, values, dates, init_date_p=init_date)
 
+        df, init_date = self.build_df(measures, end_date, values, dates, init_date_p=init_date)
 
         columns = self.metrics["x_columns"]
 
@@ -444,6 +451,12 @@ class EconomicSimulator(object):
         Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
         # Copy DataFrame aiming to include the minimal and maximal.
         Rt_max, Rt_min = Rt.copy(), Rt.copy()
+        
+        # df[['A', 'C', 'D', 'F', 'G', 'H', 'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q', 'S', 'ALL']].plot()
+        # plt.grid()
+        # Rt.plot()
+        # plt.grid()
+        # plt.show()
         
         # include the confidance interval using Rt
         std_peer_features = self.metrics['std_test']  
@@ -458,7 +471,8 @@ class EconomicSimulator(object):
         Rt_max['Date'] = df['Date']
 
         # Make a simple dataframe for the polulation 
-        population_total = pd.DataFrame(data={"population": df["population"], "date": df["Date"]}, index=df.index)
+        population_total = pd.DataFrame(data={"population": df["population"], "date": df["Date"]}, 
+                                        index=df.index)
 
         simulation_merged = self.run_all_simulation(Rt, population_total, init_date, df)
         simulation_merged_min = self.run_all_simulation(Rt_min, population_total, init_date, df)
@@ -466,8 +480,10 @@ class EconomicSimulator(object):
 
         simulation_merged_max = simulation_merged_max.drop(columns=['Date'])
 
-        simulation_merged = pd.merge(simulation_merged, simulation_merged_max, suffixes=['','_max'], left_index=True, right_index=True)
-        simulation_merged = pd.merge(simulation_merged, simulation_merged_min, suffixes=['','_min'], left_index=True, right_index=True)
+        simulation_merged = pd.merge(simulation_merged, simulation_merged_max, suffixes=['','_max'], 
+                                     left_index=True, right_index=True)
+        simulation_merged = pd.merge(simulation_merged, simulation_merged_min, suffixes=['','_min'], 
+                                     left_index=True, right_index=True)
 
         return simulation_merged
 
