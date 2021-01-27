@@ -22,7 +22,7 @@ CORS(app)
 
 DATE_PAST_SHIFT = 15
 SEIR_SHIFT = 14
-DATE_FUTURE_SHIFT = 300
+DATE_FUTURE_SHIFT = 30
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -85,9 +85,9 @@ def predict_reborn():
     posted_data = request.json
 
     # posted_data = {'country_name': 'Luxembourg', 
-    # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']], 
+    # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], #
     # 'dates': ['2020-08-06'],
-    # 'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes']]
+    # 'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 20]] 
     # }
 
     measures = posted_data['measures']
@@ -98,9 +98,9 @@ def predict_reborn():
     # We should make predictions on the worst case.
     if len(measures[0]) == 0:
         measures = [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath',
-                     'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure']]
+                     'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']]
         values = [['open', 'open', 'open', 'open', 'yes', 1000,
-                   'yes', 'yes', 'open', 'yes']]
+                   'yes', 'yes', 'open', 'yes', 0]]
         dates = None
 
     if('date_end' in posted_data.keys()):
@@ -117,12 +117,10 @@ def predict_reborn():
     end_date = end_date.strftime('%Y-%m-%d')
     init_date = init_date.strftime('%Y-%m-%d')
 
-    # print('*** [+] Informations [+] ***')
-    # print(measures)
-    # print(values)
-    # print(dates)
-    # print(init_date)
-    # print(end_date)
+    print('[+] informations')
+    print(measures)
+    print(values)
+    print(dates)
     # exit()
 
     simulator = EconomicSimulator()
@@ -141,14 +139,16 @@ def predict_reborn():
 
     filetered_simulation_results = simulation_results[columuns_to_keep]
 
-    # filetered_simulation_results[['SimulationCases_ALL']].plot()
+    # print(simulation_results.columns.to_list())
+    # filetered_simulation_results['SimulationCases_ALL'].plot()
+    # plt.title("Total Cases")
     # plt.grid()
 
-    # filetered_simulation_results[['SimulationDeaths_ALL']].plot()
+    # plt.figure()
+    # filetered_simulation_results['R_ALL'].plot()
     # plt.grid()
-
     # plt.show()
-
+    
     return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
      
 
