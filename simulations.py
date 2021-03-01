@@ -257,8 +257,7 @@ def simulate(df, measures_to_lift, measure_value, end_date, lift_date, columns, 
     return country_lift
 
 def simulate_constantRt(df, end_date):
-
-
+    
   init_date = df["Date"].tail(1).dt.date.values[0]
   current_date= init_date
   country_lift = df.copy()

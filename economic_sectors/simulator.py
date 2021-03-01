@@ -1,4 +1,6 @@
 import json, utils, joblib
+
+from pandas.core.reshape import merge
 from seir_helpers import seir
 from scipy.integrate import solve_ivp
 import pandas as pd
@@ -10,8 +12,6 @@ from utils import extend_features_with_means
 import joblib, json
 import json
 from matplotlib import pyplot as plt
-
-import multiprocessing as mp
 
 class EconomicSimulator(object):
 
@@ -46,7 +46,6 @@ class EconomicSimulator(object):
             '{}/PJG397_Covid19_daily_workSector_Residents_IGSS.xlsx'.format(self.base_path),"Total amount of workers",usecols=[0,1,2], names=["sector","label", "pop"])
         self.sectors_population = population.append({"sector": "ALL", "label":"Toutes activités",
                                                     "pop": population["pop"].sum()}, ignore_index=True)
-
 
         if initial_dataframe is None and country=="luxembourg":
             initial_dataframe = load_luxembourg_dataset()
@@ -286,11 +285,21 @@ class EconomicSimulator(object):
     def simulate(self, Rt_sector, population_total, deaths_per_sectors=None, init_date=None, vaccinated_peer_day=None):
         simulations = {}
         sectors = Rt_sector.columns[:-1]
+        
         sectors_workers = self.sectors_population[["sector","pop"]]
 
         total_pop = sectors_workers[sectors_workers["sector"]=='ALL'].values[0][1]
 
+        # print(sectors.to_list())
+        # print(sectors_workers.sort_values(by='sector')['sector'].to_list())
+        # exit()
+
         for sector in sectors:
+
+            # print('[+]',sector)
+            print(sectors_workers['sector'])
+            # print('[+]',sectors_workers[sectors_workers["sector"]==sector])
+
             sector_df = Rt_sector[["Date", sector]]
             ## Normaliser le Rt avec la distribution nationale
             sector_df.columns = ["Date", "R"]
@@ -305,6 +314,10 @@ class EconomicSimulator(object):
             sector_df["Date"] = pd.to_datetime(sector_df["Date"])
             sector_df = pd.merge(sector_df,cases, on="Date", how="left").fillna(0)
             sector_df["ConfirmedDeaths"] = 0 if deaths_per_sectors is None else deaths_per_sectors[sector]
+
+
+            
+
 
             dates = sector_df["Date"].to_list()
             if init_date is None:
@@ -406,6 +419,8 @@ class EconomicSimulator(object):
 
     def predict_economic(self, data):
         df = data.drop(["Date"], axis=1)
+        print(df)
+        print(self.economic_scaler)
         X = self.economic_scaler.transform(df)
         inflation = self.model_inflation.predict(X)
         ipcn = self.model_ipcn.predict(X)
@@ -432,6 +447,9 @@ class EconomicSimulator(object):
         df["Date"] = pd.to_datetime(df["Date"])
         merged_final = pd.merge(merged, df, on="Date")
 
+        merged_final.to_csv('simulations_from_2020-04-30_to_2021-02-16.csv')
+        print(merged_final)
+        exit()
         merged_final = self.predict_economic(merged_final)
 
         merged_final.index = merged_final["Date"]

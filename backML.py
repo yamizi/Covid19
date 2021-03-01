@@ -68,6 +68,8 @@ def get_limit_date():
     user_min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
     user_max_date = max_date + timedelta(days=DATE_PAST_SHIFT)
 
+    # print(user_min_date, user_max_date)
+
     return jsonify({'min_date': user_min_date, 
                     'max_date': user_max_date })
 
@@ -82,13 +84,16 @@ def predict_reborn():
     Returns:
         String: Json object ready to be parsed by the client.
     """
-    posted_data = request.json
+    # posted_data = request.json
 
-    # posted_data = {'country_name': 'Luxembourg', 
-    # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], #
-    # 'dates': ['2020-08-06'],
-    # 'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 20]] 
-    # }
+    posted_data = {'country_name': 'Luxembourg', 
+    'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], #
+    'dates': ['2020-04-30'],
+    'date_end':"2021-02-16",
+    'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 20]] 
+    }
+
+    # 2020-04-30 2021-02-16
 
     measures = posted_data['measures']
     dates = posted_data['dates']
@@ -103,9 +108,9 @@ def predict_reborn():
                    'yes', 'yes', 'open', 'yes', 0]]
         dates = None
 
-    if('date_end' in posted_data.keys()):
-        end_date = posted_data['date_end']
-    elif(dates is not None):
+    
+    
+    if(dates is not None):
         end_date = datetime.strptime(dates[0], '%Y-%m-%d')
         init_date = end_date - timedelta(days=DATE_PAST_SHIFT) 
         end_date = end_date + timedelta(days=DATE_FUTURE_SHIFT) 
@@ -114,6 +119,9 @@ def predict_reborn():
         init_date = datetime.now() - timedelta(days=DATE_PAST_SHIFT) 
         end_date = end_date + timedelta(days=DATE_FUTURE_SHIFT) 
 
+    if('date_end' in posted_data.keys()):
+        end_date = pd.to_datetime(posted_data['date_end'])
+
     end_date = end_date.strftime('%Y-%m-%d')
     init_date = init_date.strftime('%Y-%m-%d')
 
@@ -121,6 +129,7 @@ def predict_reborn():
     print(measures)
     print(values)
     print(dates)
+    print(end_date)
     # exit()
 
     simulator = EconomicSimulator()
@@ -149,7 +158,7 @@ def predict_reborn():
     # plt.grid()
     # plt.show()
     
-    return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
+    # return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
      
 
 @app.route('/sims/rate/<path:sim_id>')
@@ -195,6 +204,6 @@ def catch_all(path):
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8080)
-    # predict_reborn()
-    # get_limit_date()
+    #app.run(host="0.0.0.0", port=8080)
+    predict_reborn()
+    get_limit_date()

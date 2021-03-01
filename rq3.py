@@ -151,7 +151,7 @@ if __name__ == '__main__':
     t_start = time.perf_counter()
 
     #countries = ['Belgium', 'France', 'Germany', 'Greece', 'Italy', 'Latvia', 'Luxembourg', 'Netherlands', 'Spain', 'Switzerland', 'Brazil', 'Cameroon', 'Canada', 'Japan', 'United Kingdom']
-    countries = ['Japan', 'Luxembourg', 'Italy']
+    countries = ['Luxembourg']
     scenarios = ['hard exit', 'no exit', 'progressive exit', 'cyclic exit']
 
     simulation = run_simulation(countries, scenarios)
