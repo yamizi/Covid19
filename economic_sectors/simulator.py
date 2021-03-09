@@ -313,7 +313,8 @@ class EconomicSimulator(object):
             # Add the vaccination  measure, This measure influence th R0 value
             if vaccinated_peer_day is not None:
                 n_day = sector_df[sector_df['Date'] >= init_date].shape[0]
-
+                # Compute the weight of vaccine in a given sector
+                # It assumes that the vacine is fairly distributed.
                 vaccine_sector = vaccinated_peer_day * sector_population / total_pop
                 vaccine_sector = int(np.floor(vaccine_sector))
 
@@ -423,6 +424,7 @@ class EconomicSimulator(object):
     def run_all_simulation(self, Rt, population_total, init_date, df, vaccinated_peer_day=None):
 
         simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date, vaccinated_peer_day=vaccinated_peer_day)
+        
         merged = pd.merge(simulation["ALL"], simulation["A"], suffixes=["_ALL", "_A"], on="Date")
 
         for key in simulation.keys():
@@ -456,7 +458,7 @@ class EconomicSimulator(object):
 
         X_lift = self.scaler.transform(df[columns])
         y_lift = self.mlp_clf.predict(X_lift)
-        y_lift = np.clip(y_lift/2,0,2)
+        y_lift = np.clip(y_lift/2,0,10)
 
         Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
 
@@ -475,8 +477,8 @@ class EconomicSimulator(object):
         std_peer_features = self.metrics['std_test']  
         for model_output_feature in std_peer_features.keys():
             yvar = np.power(std_peer_features[model_output_feature],0.5) 
-            Rt_max[model_output_feature] = np.clip(Rt[model_output_feature] + yvar.mean() / 2, 0, 2)
-            Rt_min[model_output_feature] = np.clip(Rt[model_output_feature] - yvar.mean() / 2, 0, 2)
+            Rt_max[model_output_feature] = np.clip(Rt[model_output_feature] + yvar.mean() / 2, 0, 10)
+            Rt_min[model_output_feature] = np.clip(Rt[model_output_feature] - yvar.mean() / 2, 0, 10)
             
 
         # Passing dates to dataframe

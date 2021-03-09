@@ -87,7 +87,7 @@ def predict_reborn():
     # posted_data = {'country_name': 'Luxembourg', 
     # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], #
     # 'dates': ['2020-08-06'],
-    # 'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 20]] 
+    # 'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 0]] 
     # }
 
     measures = posted_data['measures']
@@ -118,38 +118,27 @@ def predict_reborn():
     init_date = init_date.strftime('%Y-%m-%d')
 
     print('[+] informations')
+    print(posted_data)
     print(measures)
     print(values)
-    print(dates)
+    print(init_date)
+    print(end_date)
     # exit()
 
     simulator = EconomicSimulator()
 
     simulation_results = simulator.run(dates, measures, values, end_date, init_date=init_date)
-
-    columuns_to_keep = ['SimulationCases_ALL', 'SimulationCases_ALL_min', 'SimulationCases_ALL_max',
-                        'SimulationHospital_ALL', 'SimulationHospital_ALL_min', 'SimulationHospital_ALL_max',
-                        'SimulationCritical_ALL', 'SimulationCritical_ALL_min', 'SimulationCritical_ALL_max',
-                        'SimulationDeaths_ALL', 'SimulationDeaths_ALL_min', 'SimulationDeaths_ALL_max',
-                        'R_ALL', 'R_ALL_min', 'R_ALL_max',
-                        'inflation', 'inflation_min', 'inflation_max',
-                        'ipcn',  'ipcn_min', 'ipcn_max',
-                        'unemploy', 'unemploy_min', 'unemploy_max',
-                        'export', 'export_min', 'export_max']
-
-    filetered_simulation_results = simulation_results[columuns_to_keep]
+    simulation_results = simulation_results.drop(columns=['Date'])
 
     # print(simulation_results.columns.to_list())
-    # filetered_simulation_results['SimulationCases_ALL'].plot()
-    # plt.title("Total Cases")
-    # plt.grid()
-
     # plt.figure()
-    # filetered_simulation_results['R_ALL'].plot()
+    # simulation_results['A'].plot()
+    # simulation_results['R_A'].plot()
+    # plt.legend()
     # plt.grid()
     # plt.show()
     
-    return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
+    return jsonify({'df': simulation_results.reset_index().to_dict(orient='records')})
      
 
 @app.route('/sims/rate/<path:sim_id>')
