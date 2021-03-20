@@ -4,12 +4,13 @@ from scipy.integrate import solve_ivp
 import pandas as pd
 import numpy as np
 from utils import load_luxembourg_dataset
-from typing import List
+from typing import List, Union
 from datetime import timedelta, datetime
 from utils import extend_features_with_means
 import joblib, json
 import json
 from matplotlib import pyplot as plt
+import seaborn as sns
 
 import multiprocessing as mp
 
@@ -76,17 +77,17 @@ class EconomicSimulator(object):
         self.model_inflation = joblib.load("./models/economic_impact/model_inflation.save")
         self.model_ipcn = joblib.load("./models/economic_impact/model_ipcn.save")
 
-        self.economic_scaler = joblib.load("./models/economic_impact/scaler_econ.save")
+        # self.economic_scaler = joblib.load("./models/economic_impact/scaler_econ.save")
 
-    def get_maximum_date(self):
-        """To Define the maximum date the end-user can ask.
+    def get_limit_dates(self) -> Union[datetime.date, datetime.date]:
+        """To Define the maximum and minimum date the end-user can ask.
 
         Returns:
-            Pandas.datetime: The maximum Dataset Date.
+            Union[datetime.date, datetime.date]: The maximum and minimum dataset Date.
         """
+
         min_date = self.initial_df.head(1).index.date[0]
         max_date  = self.initial_df.tail(1).index.date[0]
-
 
         return min_date, max_date
         
@@ -133,11 +134,8 @@ class EconomicSimulator(object):
 
             current_date = pd.to_datetime(init_date)
 
-            n_day = 0
-
             while current_date < end_date:
                 current_date = current_date + timedelta(days=1)
-                n_day += 1
                 obj = country_change.tail(1).to_dict('records')[0]
                 obj["Date"] = current_date
                 vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values[0]
@@ -147,7 +145,7 @@ class EconomicSimulator(object):
                     if change:
                         obj[measure] = vals[i]
 
-                obj = self.update_ML_params(obj, n_day)
+                obj = self.update_ML_params(obj)
 
                 country_change = country_change.append(obj, ignore_index=True)                
             all_columns_extended = country_change.drop(self.possibile_inputs,axis=1).fillna(method="pad").fillna(method="backfill")
@@ -190,16 +188,10 @@ class EconomicSimulator(object):
         return population
 
 
-    def update_ML_params(self,obj, day_of_application):
+    def update_ML_params(self,obj):
         # Activity Resctrictions
         obj["population"] = self.update_population(obj["b_be"],obj["b_fr"],obj["b_de"],obj["activity_restr"])
-
-        # if(obj["vaccinated_peer_week"] >0):
-        #     people_vaccinated_peer_day = self.possibile_inputs['vaccinated_peer_week'][-1] * obj["vaccinated_peer_week"] / 700
-        #     obj['population'] -= people_vaccinated_peer_day * day_of_application
-        #     print('[+]', obj['population'])
             
-
         if obj["resp_gov_measure"] == 'yes':
             obj["H1"] = 2
             obj["H2"] = 3
@@ -329,6 +321,8 @@ class EconomicSimulator(object):
 
                 sector_df.reset_index(drop=True, inplace=True)
 
+            print(sector_df)
+
             simulation = self.update_seir(sector_df, active_date=init_date, e_date=dates[-1],
                                           population=sector_population*susceptible_factor)
             #simulation.index = simulation["Date"]
@@ -344,7 +338,9 @@ class EconomicSimulator(object):
         # cols = list(df.columns)
         # t_hosp=7, t_crit=14, m_a=0.7, c_a=0.1, f_a=0.3
         params = [7, 10, 0.8, 0.3, 0.3]
-        params.append(True)
+        
+        # Decay values 
+        params.append(False)
 
         data = df[df["Date"] >= active_date]
         ref_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-7))]
@@ -407,7 +403,8 @@ class EconomicSimulator(object):
 
     def predict_economic(self, data):
         df = data.drop(["Date"], axis=1)
-        X = self.economic_scaler.transform(df)
+        X = df.values
+        # X = self.economic_scaler.transform(df)
         inflation = self.model_inflation.predict(X)
         ipcn = self.model_ipcn.predict(X)
         unemploy = self.model_unemployment.predict(X)
@@ -434,6 +431,8 @@ class EconomicSimulator(object):
         df["Date"] = pd.to_datetime(df["Date"])
         merged_final = pd.merge(merged, df, on="Date")
 
+        print(merged_final)
+
         merged_final = self.predict_economic(merged_final)
 
         merged_final.index = merged_final["Date"]
@@ -454,6 +453,7 @@ class EconomicSimulator(object):
 
         df, init_date = self.build_df(measures, end_date, values, dates, init_date_p=init_date)
 
+
         columns = self.metrics["x_columns"]
 
         X_lift = self.scaler.transform(df[columns])
@@ -461,6 +461,21 @@ class EconomicSimulator(object):
         y_lift = np.clip(y_lift/2,0,10)
 
         Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
+
+        # print(self.initial_df)
+        # Rt.index = df['Date']
+        # plt.figure()
+        # plt.title('predicted Rt')
+        # Rt['ALL'].plot()
+        # plt.legend()
+
+        # plt.figure()
+        # plt.title('Initial df')
+        # self.initial_df.loc[df['Date']]['ALL'].plot()
+        # plt.legend()
+        # Rt.reset_index(drop=True, inplace=True)
+        # plt.show()
+        # exit()
 
         if 'vaccinated_peer_week' in measures[0]:
             idx_vaccinated_value = measures[0].index('vaccinated_peer_week')

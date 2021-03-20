@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from flask_cors import CORS
 from simulations import simulate
 import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(font_scale=1)
 
 base_folder = "./plots/simulations"
 
@@ -63,15 +65,21 @@ def get_limit_date():
         Object: An object that contains the maximum date the user can ask.
     """
     simulator = EconomicSimulator()
-    min_date, max_date = simulator.get_maximum_date() 
+    min_date, max_date = simulator.get_limit_dates() 
 
-    user_min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
-    user_max_date = max_date + timedelta(days=DATE_PAST_SHIFT)
+    if max_date.year > min_date.year:
+        print("on est bonnnnn")
+        min_date =  datetime(max_date.year, 1, 1).date()
+    else:
+        min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
 
-    return jsonify({'min_date': user_min_date, 
-                    'max_date': user_max_date })
 
 
+    print(min_date, max_date)
+    print(type(min_date), type(max_date))
+
+    return jsonify({'min_date': min_date, 
+                    'max_date': max_date })
 
 
 
@@ -83,10 +91,10 @@ def predict_reborn():
         String: Json object ready to be parsed by the client.
     """
     posted_data = request.json
-
-    # posted_data = {'country_name': 'Luxembourg', 
+    # posted_data = {
+    # 'country_name': 'Luxembourg', 
     # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], #
-    # 'dates': ['2020-08-06'],
+    # 'dates': ['2020-08-03'],
     # 'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 0]] 
     # }
 
@@ -117,25 +125,27 @@ def predict_reborn():
     end_date = end_date.strftime('%Y-%m-%d')
     init_date = init_date.strftime('%Y-%m-%d')
 
-    print('[+] informations')
-    print(posted_data)
-    print(measures)
-    print(values)
-    print(init_date)
-    print(end_date)
+    # print('[+] informations')
+    # print(posted_data)
+    # print(measures)
+    # print(values)
+    # print(init_date)
+    # print(end_date)
     # exit()
 
     simulator = EconomicSimulator()
-
     simulation_results = simulator.run(dates, measures, values, end_date, init_date=init_date)
+    simulation_results['objective'] = 1
     simulation_results = simulation_results.drop(columns=['Date'])
 
     # print(simulation_results.columns.to_list())
     # plt.figure()
-    # simulation_results['A'].plot()
     # simulation_results['R_A'].plot()
     # plt.legend()
-    # plt.grid()
+
+    # plt.figure()
+    # simulation_results['SimulationCases_A'].plot()
+    # plt.legend()
     # plt.show()
     
     return jsonify({'df': simulation_results.reset_index().to_dict(orient='records')})
