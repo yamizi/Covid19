@@ -183,7 +183,6 @@ def error_band(data, x, hue):
         y_max = data.loc[data[hue] == line.get_label()]['Max'].values
 
         ax.fill_between(x_values, y_min, y_max, color=line.get_color(), alpha=0.2, linewidth=0.0)
-        
 
 def a12(lst1, lst2, rev=True):
     more = same = 0.0

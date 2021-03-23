@@ -321,8 +321,6 @@ class EconomicSimulator(object):
 
                 sector_df.reset_index(drop=True, inplace=True)
 
-            print(sector_df)
-
             simulation = self.update_seir(sector_df, active_date=init_date, e_date=dates[-1],
                                           population=sector_population*susceptible_factor)
             #simulation.index = simulation["Date"]
@@ -431,7 +429,6 @@ class EconomicSimulator(object):
         df["Date"] = pd.to_datetime(df["Date"])
         merged_final = pd.merge(merged, df, on="Date")
 
-        print(merged_final)
 
         merged_final = self.predict_economic(merged_final)
 
@@ -453,7 +450,6 @@ class EconomicSimulator(object):
 
         df, init_date = self.build_df(measures, end_date, values, dates, init_date_p=init_date)
 
-
         columns = self.metrics["x_columns"]
 
         X_lift = self.scaler.transform(df[columns])
@@ -461,6 +457,7 @@ class EconomicSimulator(object):
         y_lift = np.clip(y_lift/2,0,10)
 
         Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
+
 
         # print(self.initial_df)
         # Rt.index = df['Date']

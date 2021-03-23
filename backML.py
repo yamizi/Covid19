@@ -138,6 +138,8 @@ def predict_reborn():
     simulation_results['objective'] = 1
     simulation_results = simulation_results.drop(columns=['Date'])
 
+    # convert_code_to_real_name(simulation_results)
+
     # print(simulation_results.columns.to_list())
     # plt.figure()
     # simulation_results['R_A'].plot()
