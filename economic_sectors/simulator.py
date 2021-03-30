@@ -293,6 +293,8 @@ class EconomicSimulator(object):
             cases =  pd.DataFrame(data={"ConfirmedCases":self.cases[sector], "Date":self.cases.index}, 
                                   index=self.cases.index)
 
+            print(self.cases)
+
             cases["Date"] = pd.to_datetime(cases["Date"])
             sector_df["Date"] = pd.to_datetime(sector_df["Date"])
             sector_df = pd.merge(sector_df,cases, on="Date", how="left").fillna(0)
@@ -321,8 +323,13 @@ class EconomicSimulator(object):
 
                 sector_df.reset_index(drop=True, inplace=True)
 
+
+            print('[+]', sector)
+
+
             simulation = self.update_seir(sector_df, active_date=init_date, e_date=dates[-1],
                                           population=sector_population*susceptible_factor)
+
             #simulation.index = simulation["Date"]
             #simulation = simulation.drop(["Date"], axis=1)
             simulations[sector] = simulation
@@ -344,17 +351,18 @@ class EconomicSimulator(object):
         ref_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-7))]
         inf_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-14))]
 
-        # Herd immunity is assumed at 70%
-        N = population * 0.7
-        n_infected = ref_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedCases'].iloc[0]  # data['InfectiousCases'].iloc[0]
 
-        n_exposed = data['ConfirmedCases'].iloc[0] - ref_data['ConfirmedCases'].iloc[0]  # data['ExposedCases'].iloc[0]
+        # Herd immunity is assumed at 70%
+        N = population * .7
+        n_infected = ref_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedCases'].iloc[0] # data['InfectiousCases'].iloc[0]
+        n_exposed = data['ConfirmedCases'].iloc[0] - ref_data['ConfirmedCases'].iloc[0] # data['ExposedCases'].iloc[0]
         n_hospitalized = (1 - params[2]) * n_exposed  # data['HospitalizedCases'].iloc[0]*1.5
         n_exposed = params[2] * n_exposed
         n_critical = (params[3]) * n_hospitalized  # data['CriticalCases'].iloc[0]*1.5
 
         n_recovered = inf_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedDeaths'].iloc[0]  # data['RecoveredCases'].iloc[0]
         n_deaths = data['ConfirmedDeaths'].iloc[0]
+
         # S, E, I, R, H, C, D
         initial_state = [(N - n_infected) / N, n_exposed / N, n_infected / N, n_recovered / N, 
                           n_hospitalized / N, n_critical / N, n_deaths / N]
@@ -380,11 +388,11 @@ class EconomicSimulator(object):
         y_pred_infectious = np.clip(inf, 0, np.inf) * population
 
         dates = data["Date"].iloc[1:]
-        l = len(dates)
 
         smoothing_columns = ["SimulationCases", "SimulationHospital", "SimulationCritical", "SimulationDeaths"]
 
-        simulations = pd.DataFrame({"Date": dates, "SimulationCases": y_pred_cases.astype(int),
+        simulations = pd.DataFrame({"Date": dates, 
+                                    "SimulationCases": y_pred_cases.astype(int),
                                     "SimulationHospital": y_pred_hosp.astype(int) + y_pred_critic.astype(int),
                                     "SimulationCritical": y_pred_critic.astype(int),
                                     "SimulationDeaths": y_pred_deaths.astype(int),
@@ -454,9 +462,10 @@ class EconomicSimulator(object):
 
         X_lift = self.scaler.transform(df[columns])
         y_lift = self.mlp_clf.predict(X_lift)
-        y_lift = np.clip(y_lift/2,0,10)
 
         Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
+
+
 
 
         # print(self.initial_df)

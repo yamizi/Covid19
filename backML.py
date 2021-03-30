@@ -22,9 +22,9 @@ app = Flask(__name__, static_url_path="")
 CORS(app)
 
 
-DATE_PAST_SHIFT = 15
+DATE_PAST_SHIFT = 7
 SEIR_SHIFT = 14
-DATE_FUTURE_SHIFT = 30
+DATE_FUTURE_SHIFT = 20
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -52,7 +52,7 @@ def predict():
         df = df.to_dict(orient='records')
 
     # print("processed")
-    return jsonify({'path': seed, 'df': df})
+    # return jsonify({'path': seed, 'df': df})
 
 
 @app.route('/reborn_api_limit', methods=['POST'])
@@ -67,11 +67,12 @@ def get_limit_date():
     simulator = EconomicSimulator()
     min_date, max_date = simulator.get_limit_dates() 
 
-    if max_date.year > min_date.year:
-        print("on est bonnnnn")
-        min_date =  datetime(max_date.year, 1, 1).date()
-    else:
-        min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
+    # if max_date.year > min_date.year:
+    #     print("on est bonnnnn")
+    #     min_date =  datetime(max_date.year, 1, 1).date()
+    # else:
+    
+    min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
 
 
 
@@ -91,12 +92,10 @@ def predict_reborn():
         String: Json object ready to be parsed by the client.
     """
     posted_data = request.json
-    # posted_data = {
-    # 'country_name': 'Luxembourg', 
-    # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], #
-    # 'dates': ['2020-08-03'],
-    # 'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 0]] 
-    # }
+    # posted_data = {'country_name': 'Luxembourg',
+    # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], 
+    # 'dates': ['2020-05-01'], 
+    # 'values': [['close', 'close', 'close', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 0]]}
 
     measures = posted_data['measures']
     dates = posted_data['dates']
@@ -125,29 +124,25 @@ def predict_reborn():
     end_date = end_date.strftime('%Y-%m-%d')
     init_date = init_date.strftime('%Y-%m-%d')
 
-    # print('[+] informations')
-    # print(posted_data)
-    # print(measures)
-    # print(values)
-    # print(init_date)
-    # print(end_date)
-    # exit()
+    print('[+] informations')
+    print(posted_data)
+    print(init_date)
+    print(end_date)
 
     simulator = EconomicSimulator()
     simulation_results = simulator.run(dates, measures, values, end_date, init_date=init_date)
-    simulation_results['objective'] = 1
     simulation_results = simulation_results.drop(columns=['Date'])
 
-    # convert_code_to_real_name(simulation_results)
-
-    # print(simulation_results.columns.to_list())
-    # plt.figure()
-    # simulation_results['R_A'].plot()
+    # plt.figure(figsize=(10, 8))
+    # plt.subplot(2,1,1)
+    # simulation_results['SimulationCases_ALL'].plot()
+    # simulation_results['SimulationDeaths_ALL'].plot()
     # plt.legend()
 
-    # plt.figure()
-    # simulation_results['SimulationCases_A'].plot()
+    # plt.subplot(2,1,2)
+    # simulation_results['R_ALL'].plot()
     # plt.legend()
+    # plt.tight_layout()
     # plt.show()
     
     return jsonify({'df': simulation_results.reset_index().to_dict(orient='records')})
