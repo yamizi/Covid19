@@ -67,17 +67,15 @@ def get_limit_date():
     simulator = EconomicSimulator()
     min_date, max_date = simulator.get_limit_dates() 
 
-    # if max_date.year > min_date.year:
-    #     print("on est bonnnnn")
-    #     min_date =  datetime(max_date.year, 1, 1).date()
-    # else:
-    
-    min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
+    if max_date.year > min_date.year:
+        min_date =  datetime(max_date.year, 1, 1).date()
+    else:
+        min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
 
 
 
-    print(min_date, max_date)
-    print(type(min_date), type(max_date))
+    # print(min_date, max_date)
+    # print(type(min_date), type(max_date))
 
     return jsonify({'min_date': min_date, 
                     'max_date': max_date })
@@ -110,12 +108,12 @@ def predict_reborn():
                    'yes', 'yes', 'open', 'yes', 0]]
         dates = None
 
-    if('date_end' in posted_data.keys()):
-        end_date = posted_data['date_end']
-    elif(dates is not None):
-        end_date = datetime.strptime(dates[0], '%Y-%m-%d')
-        init_date = end_date - timedelta(days=DATE_PAST_SHIFT) 
-        end_date = end_date + timedelta(days=DATE_FUTURE_SHIFT) 
+    # Make the time range of predictions
+    # The `date` variable is the date where measures 
+    # will take place.
+    if(dates is not None):
+        init_date = datetime.strptime(dates[0], '%Y-%m-%d') - timedelta(days=DATE_PAST_SHIFT) 
+        end_date = datetime.strptime(dates[0], '%Y-%m-%d') + timedelta(days=DATE_FUTURE_SHIFT) 
     else:
         end_date = datetime.now()
         init_date = datetime.now() - timedelta(days=DATE_PAST_SHIFT) 
@@ -124,10 +122,10 @@ def predict_reborn():
     end_date = end_date.strftime('%Y-%m-%d')
     init_date = init_date.strftime('%Y-%m-%d')
 
-    print('[+] informations')
-    print(posted_data)
-    print(init_date)
-    print(end_date)
+    # print('[+] informations')
+    # print(posted_data)
+    # print(init_date)
+    # print(end_date)
 
     simulator = EconomicSimulator()
     simulation_results = simulator.run(dates, measures, values, end_date, init_date=init_date)
