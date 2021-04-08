@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from flask_cors import CORS
 from simulations import simulate
 import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(font_scale=1)
 
 base_folder = "./plots/simulations"
 
@@ -20,9 +22,9 @@ app = Flask(__name__, static_url_path="")
 CORS(app)
 
 
-DATE_PAST_SHIFT = 15
+DATE_PAST_SHIFT = 7
 SEIR_SHIFT = 14
-DATE_FUTURE_SHIFT = 30
+DATE_FUTURE_SHIFT = 20
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -50,7 +52,7 @@ def predict():
         df = df.to_dict(orient='records')
 
     # print("processed")
-    return jsonify({'path': seed, 'df': df})
+    # return jsonify({'path': seed, 'df': df})
 
 
 @app.route('/reborn_api_limit', methods=['POST'])
@@ -63,17 +65,18 @@ def get_limit_date():
         Object: An object that contains the maximum date the user can ask.
     """
     simulator = EconomicSimulator()
-    min_date, max_date = simulator.get_maximum_date() 
+    min_date, max_date = simulator.get_limit_dates() 
 
-    user_min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
-    user_max_date = max_date + timedelta(days=DATE_PAST_SHIFT)
+    if max_date.year > min_date.year:
+        min_date =  datetime(max_date.year, 1, 1).date()
+    else:
+        min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
 
-    # print(user_min_date, user_max_date)
+    # print(min_date, max_date)
+    # print(type(min_date), type(max_date))
 
-    return jsonify({'min_date': user_min_date, 
-                    'max_date': user_max_date })
-
-
+    return jsonify({'min_date': min_date, 
+                    'max_date': max_date })
 
 
 
@@ -84,16 +87,11 @@ def predict_reborn():
     Returns:
         String: Json object ready to be parsed by the client.
     """
-    # posted_data = request.json
-
-    posted_data = {'country_name': 'Luxembourg', 
-    'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], #
-    'dates': ['2020-04-30'],
-    'date_end':"2021-02-16",
-    'values':  [['open', 'open', 'open', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 20]] 
-    }
-
-    # 2020-04-30 2021-02-16
+    posted_data = request.json
+    # posted_data = {'country_name': 'Luxembourg',
+    # 'measures': [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath', 'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']], 
+    # 'dates': ['2020-05-01'], 
+    # 'values': [['close', 'close', 'close', 'open', 'yes', 1000, 'yes', 'yes', 'open', 'yes', 0]]}
 
     measures = posted_data['measures']
     dates = posted_data['dates']
@@ -108,12 +106,12 @@ def predict_reborn():
                    'yes', 'yes', 'open', 'yes', 0]]
         dates = None
 
-    
-    
+    # Make the time range of predictions
+    # The `date` variable is the date where measures 
+    # will take place.
     if(dates is not None):
-        end_date = datetime.strptime(dates[0], '%Y-%m-%d')
-        init_date = end_date - timedelta(days=DATE_PAST_SHIFT) 
-        end_date = end_date + timedelta(days=DATE_FUTURE_SHIFT) 
+        init_date = datetime.strptime(dates[0], '%Y-%m-%d') - timedelta(days=DATE_PAST_SHIFT) 
+        end_date = datetime.strptime(dates[0], '%Y-%m-%d') + timedelta(days=DATE_FUTURE_SHIFT) 
     else:
         end_date = datetime.now()
         init_date = datetime.now() - timedelta(days=DATE_PAST_SHIFT) 
@@ -125,40 +123,28 @@ def predict_reborn():
     end_date = end_date.strftime('%Y-%m-%d')
     init_date = init_date.strftime('%Y-%m-%d')
 
-    print('[+] informations')
-    print(measures)
-    print(values)
-    print(dates)
-    print(end_date)
-    # exit()
+    # print('[+] informations')
+    # print(posted_data)
+    # print(init_date)
+    # print(end_date)
 
     simulator = EconomicSimulator()
-
     simulation_results = simulator.run(dates, measures, values, end_date, init_date=init_date)
+    simulation_results = simulation_results.drop(columns=['Date'])
 
-    columuns_to_keep = ['SimulationCases_ALL', 'SimulationCases_ALL_min', 'SimulationCases_ALL_max',
-                        'SimulationHospital_ALL', 'SimulationHospital_ALL_min', 'SimulationHospital_ALL_max',
-                        'SimulationCritical_ALL', 'SimulationCritical_ALL_min', 'SimulationCritical_ALL_max',
-                        'SimulationDeaths_ALL', 'SimulationDeaths_ALL_min', 'SimulationDeaths_ALL_max',
-                        'R_ALL', 'R_ALL_min', 'R_ALL_max',
-                        'inflation', 'inflation_min', 'inflation_max',
-                        'ipcn',  'ipcn_min', 'ipcn_max',
-                        'unemploy', 'unemploy_min', 'unemploy_max',
-                        'export', 'export_min', 'export_max']
+    # plt.figure(figsize=(10, 8))
+    # plt.subplot(2,1,1)
+    # simulation_results['SimulationCases_ALL'].plot()
+    # simulation_results['SimulationDeaths_ALL'].plot()
+    # plt.legend()
 
-    filetered_simulation_results = simulation_results[columuns_to_keep]
-
-    # print(simulation_results.columns.to_list())
-    # filetered_simulation_results['SimulationCases_ALL'].plot()
-    # plt.title("Total Cases")
-    # plt.grid()
-
-    # plt.figure()
-    # filetered_simulation_results['R_ALL'].plot()
-    # plt.grid()
+    # plt.subplot(2,1,2)
+    # simulation_results['R_ALL'].plot()
+    # plt.legend()
+    # plt.tight_layout()
     # plt.show()
     
-    # return jsonify({'df': filetered_simulation_results.reset_index().to_dict(orient='records')})
+    return jsonify({'df': simulation_results.reset_index().to_dict(orient='records')})
      
 
 @app.route('/sims/rate/<path:sim_id>')
@@ -204,6 +190,6 @@ def catch_all(path):
 
 
 if __name__ == '__main__':
-    #app.run(host="0.0.0.0", port=8080)
-    predict_reborn()
-    get_limit_date()
+    app.run(host="0.0.0.0", port=8080)
+    # predict_reborn()
+    # get_limit_date()

@@ -6,7 +6,7 @@ import numpy as np
 from utils import load_luxembourg_dataset
 from typing import List
 from datetime import timedelta, datetime
-from utils import extend_features_with_means
+from utils import extend_features_with_means        
 import joblib, json
 import json
 from matplotlib import pyplot as plt
@@ -376,8 +376,6 @@ class EconomicSimulator(object):
         population_total = pd.DataFrame(data={"population": df["population"], "date": df["Date"]}, index=df.index)
 
         simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date)
-
-
         
         merged = pd.merge(simulation["ALL"], simulation["A"], suffixes=["_ALL", "_A"], on="Date")
         
@@ -395,63 +393,63 @@ class EconomicSimulator(object):
         return merged_final
 
 
-def run(dates=None,measures=None,values=None):
-    sim = EconomicSimulator()
-    if dates is None:
-        dates = ["2020-08-15", "2020-08-30"]
-    if measures is None:
-        measures = [["b_be","b_fr"]]
-    if values is None:
-        values = [["close","close"]]
+# def run(dates=None,measures=None,values=None):
+#     sim = EconomicSimulator()
+#     if dates is None:
+#         dates = ["2020-08-15", "2020-08-30"]
+#     if measures is None:
+#         measures = [["b_be","b_fr"]]
+#     if values is None:
+#         values = [["close","close"]]
 
-    end_date = "2020-12-15"
+#     end_date = "2020-12-15"
 
-    simulation = sim.run(dates, measures, values, end_date)
+#     simulation = sim.run(dates, measures, values, end_date)
     #simulation["O"].plot(title="Sector O")
     #simulation["ALL"].plot(title="All sectors")
 
-    return simulation
+    # return simulation
 
 
-def iter(k, last_combinations=[], last_values=[]):
-    for i in range(k, nb_values):
-        ms, vs = list(measures_possibles.keys())[i], list(measures_possibles.values())[i]
-        for v in vs:
+# def iter(k, last_combinations=[], last_values=[]):
+#     for i in range(k, nb_values):
+#         ms, vs = list(measures_possibles.keys())[i], list(measures_possibles.values())[i]
+#         for v in vs:
 
-            if len(combinations) > max_scenarios:
-                return
+#             if len(combinations) > max_scenarios:
+#                 return
 
-            last_c = last_combinations.copy()
-            last_c.append(ms)
-            last_v =  last_values.copy()
-            last_v.append(v)
+#             last_c = last_combinations.copy()
+#             last_c.append(ms)
+#             last_v =  last_values.copy()
+#             last_v.append(v)
 
-            if i+1<nb_values:
-                iter(i + 1, last_c, last_v)
-            else:
-                if len(last_c)==nb_values:
-                    dates = dt * len(last_v)
-                    df = run(dates=dates, measures=[last_c], values=[last_v])
-                    measures = {"dates": dates, "inputs": last_c, "values": last_v}
-                    combinations.append(last_c)
-                    values.append(last_v)
-                    json.dump(measures, open("scenarios/{}.json".format(len(combinations)), "w"))
-                    df.to_csv("scenarios/{}.csv".format(len(combinations)), sep=';')
+#             if i+1<nb_values:
+#                 iter(i + 1, last_c, last_v)
+#             else:
+#                 if len(last_c)==nb_values:
+#                     dates = dt * len(last_v)
+#                     df = run(dates=dates, measures=[last_c], values=[last_v])
+#                     measures = {"dates": dates, "inputs": last_c, "values": last_v}
+#                     combinations.append(last_c)
+#                     values.append(last_v)
+#                     json.dump(measures, open("scenarios/{}.json".format(len(combinations)), "w"))
+#                     df.to_csv("scenarios/{}.csv".format(len(combinations)), sep=';')
 
-    return
+#     return
 
 
         
-dt = ["2020-08-15"]
+dt = ["2020-04-17"]
 #run()
 #run(measures = [["activity_restr"]],values = [["close"]])
 #plt.show()
-scenarios = []
-measures_possibles = EconomicSimulator.possibile_inputs
-nb_values = len(measures_possibles.keys())
-combinations = []
-values = []
-max_scenarios = 50
+# scenarios = []
+# measures_possibles = EconomicSimulator.possibile_inputs
+# nb_values = len(measures_possibles.keys())
+# combinations = []
+# values = []
+# max_scenarios = 50000
 
-iter(0)
-print(len(combinations))
+# iter(0)
+# print(len(combinations))

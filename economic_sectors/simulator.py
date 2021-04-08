@@ -6,12 +6,13 @@ from scipy.integrate import solve_ivp
 import pandas as pd
 import numpy as np
 from utils import load_luxembourg_dataset
-from typing import List
+from typing import List, Union
 from datetime import timedelta, datetime
 from utils import extend_features_with_means
 import joblib, json
 import json
 from matplotlib import pyplot as plt
+import seaborn as sns
 
 class EconomicSimulator(object):
 
@@ -75,17 +76,17 @@ class EconomicSimulator(object):
         self.model_inflation = joblib.load("./models/economic_impact/model_inflation.save")
         self.model_ipcn = joblib.load("./models/economic_impact/model_ipcn.save")
 
-        self.economic_scaler = joblib.load("./models/economic_impact/scaler_econ.save")
+        # self.economic_scaler = joblib.load("./models/economic_impact/scaler_econ.save")
 
-    def get_maximum_date(self):
-        """To Define the maximum date the end-user can ask.
+    def get_limit_dates(self) -> Union[datetime.date, datetime.date]:
+        """To Define the maximum and minimum date the end-user can ask.
 
         Returns:
-            Pandas.datetime: The maximum Dataset Date.
+            Union[datetime.date, datetime.date]: The maximum and minimum dataset Date.
         """
+
         min_date = self.initial_df.head(1).index.date[0]
         max_date  = self.initial_df.tail(1).index.date[0]
-
 
         return min_date, max_date
         
@@ -132,11 +133,8 @@ class EconomicSimulator(object):
 
             current_date = pd.to_datetime(init_date)
 
-            n_day = 0
-
             while current_date < end_date:
                 current_date = current_date + timedelta(days=1)
-                n_day += 1
                 obj = country_change.tail(1).to_dict('records')[0]
                 obj["Date"] = current_date
                 vals = measure_values[k] if measure_values is not None and len(measure_values) > 1 else measure_values[0]
@@ -146,7 +144,7 @@ class EconomicSimulator(object):
                     if change:
                         obj[measure] = vals[i]
 
-                obj = self.update_ML_params(obj, n_day)
+                obj = self.update_ML_params(obj)
 
                 country_change = country_change.append(obj, ignore_index=True)                
             all_columns_extended = country_change.drop(self.possibile_inputs,axis=1).fillna(method="pad").fillna(method="backfill")
@@ -189,16 +187,10 @@ class EconomicSimulator(object):
         return population
 
 
-    def update_ML_params(self,obj, day_of_application):
+    def update_ML_params(self,obj):
         # Activity Resctrictions
         obj["population"] = self.update_population(obj["b_be"],obj["b_fr"],obj["b_de"],obj["activity_restr"])
-
-        # if(obj["vaccinated_peer_week"] >0):
-        #     people_vaccinated_peer_day = self.possibile_inputs['vaccinated_peer_week'][-1] * obj["vaccinated_peer_week"] / 700
-        #     obj['population'] -= people_vaccinated_peer_day * day_of_application
-        #     print('[+]', obj['population'])
             
-
         if obj["resp_gov_measure"] == 'yes':
             obj["H1"] = 2
             obj["H2"] = 3
@@ -297,7 +289,6 @@ class EconomicSimulator(object):
         for sector in sectors:
 
             # print('[+]',sector)
-            print(sectors_workers['sector'])
             # print('[+]',sectors_workers[sectors_workers["sector"]==sector])
 
             sector_df = Rt_sector[["Date", sector]]
@@ -309,6 +300,8 @@ class EconomicSimulator(object):
 
             cases =  pd.DataFrame(data={"ConfirmedCases":self.cases[sector], "Date":self.cases.index}, 
                                   index=self.cases.index)
+
+            # print(self.cases)
 
             cases["Date"] = pd.to_datetime(cases["Date"])
             sector_df["Date"] = pd.to_datetime(sector_df["Date"])
@@ -326,7 +319,8 @@ class EconomicSimulator(object):
             # Add the vaccination  measure, This measure influence th R0 value
             if vaccinated_peer_day is not None:
                 n_day = sector_df[sector_df['Date'] >= init_date].shape[0]
-
+                # Compute the weight of vaccine in a given sector
+                # It assumes that the vacine is fairly distributed.
                 vaccine_sector = vaccinated_peer_day * sector_population / total_pop
                 vaccine_sector = int(np.floor(vaccine_sector))
 
@@ -341,8 +335,13 @@ class EconomicSimulator(object):
 
                 sector_df.reset_index(drop=True, inplace=True)
 
+
+            # print('[+]', sector)
+
+
             simulation = self.update_seir(sector_df, active_date=init_date, e_date=dates[-1],
                                           population=sector_population*susceptible_factor)
+
             #simulation.index = simulation["Date"]
             #simulation = simulation.drop(["Date"], axis=1)
             simulations[sector] = simulation
@@ -355,24 +354,30 @@ class EconomicSimulator(object):
 
         # cols = list(df.columns)
         # t_hosp=7, t_crit=14, m_a=0.7, c_a=0.1, f_a=0.3
-        params = [7, 10, 0.8, 0.3, 0.3]
-        params.append(True)
+        params = [7, 10, 0.8, 0.3, 0.1]
+        
+        # Decay values 
+        params.append(False)
 
+
+        # print(df)
+        # print(active_date + timedelta(days=-7))
+        # print(active_date + timedelta(days=-14))
+        # exit()
         data = df[df["Date"] >= active_date]
         ref_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-7))]
         inf_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-14))]
 
-        # Herd immunity is assumed at 70%
-        N = population * 0.7
-        n_infected = ref_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedCases'].iloc[0]  # data['InfectiousCases'].iloc[0]
-
-        n_exposed = data['ConfirmedCases'].iloc[0] - ref_data['ConfirmedCases'].iloc[0]  # data['ExposedCases'].iloc[0]
+        N = population 
+        n_infected = ref_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedCases'].iloc[0] # data['InfectiousCases'].iloc[0]
+        n_exposed = data['ConfirmedCases'].iloc[0] - ref_data['ConfirmedCases'].iloc[0] # data['ExposedCases'].iloc[0]
         n_hospitalized = (1 - params[2]) * n_exposed  # data['HospitalizedCases'].iloc[0]*1.5
         n_exposed = params[2] * n_exposed
         n_critical = (params[3]) * n_hospitalized  # data['CriticalCases'].iloc[0]*1.5
 
         n_recovered = inf_data['ConfirmedCases'].iloc[0] - inf_data['ConfirmedDeaths'].iloc[0]  # data['RecoveredCases'].iloc[0]
         n_deaths = data['ConfirmedDeaths'].iloc[0]
+
         # S, E, I, R, H, C, D
         initial_state = [(N - n_infected) / N, n_exposed / N, n_infected / N, n_recovered / N, 
                           n_hospitalized / N, n_critical / N, n_deaths / N]
@@ -382,8 +387,8 @@ class EconomicSimulator(object):
         def time_varying_reproduction(t):
             index = np.min((int(t), len(R_t) - 1))
             return R_t[index]
-
-        args = (time_varying_reproduction, 5.6, 2.9, *params)
+        # 5., 2.9
+        args = (time_varying_reproduction, 5., 2.9, *params)
 
         init_date = datetime.combine(active_date, datetime.min.time())
         max_days = (pd.Timestamp(e_date) - pd.Timestamp(init_date)) / np.timedelta64(1, 'D')
@@ -398,11 +403,11 @@ class EconomicSimulator(object):
         y_pred_infectious = np.clip(inf, 0, np.inf) * population
 
         dates = data["Date"].iloc[1:]
-        l = len(dates)
 
         smoothing_columns = ["SimulationCases", "SimulationHospital", "SimulationCritical", "SimulationDeaths"]
 
-        simulations = pd.DataFrame({"Date": dates, "SimulationCases": y_pred_cases.astype(int),
+        simulations = pd.DataFrame({"Date": dates, 
+                                    "SimulationCases": y_pred_cases.astype(int),
                                     "SimulationHospital": y_pred_hosp.astype(int) + y_pred_critic.astype(int),
                                     "SimulationCritical": y_pred_critic.astype(int),
                                     "SimulationDeaths": y_pred_deaths.astype(int),
@@ -419,9 +424,10 @@ class EconomicSimulator(object):
 
     def predict_economic(self, data):
         df = data.drop(["Date"], axis=1)
-        print(df)
-        print(self.economic_scaler)
-        X = self.economic_scaler.transform(df)
+
+        X = df.values
+
+        # X = self.economic_scaler.transform(df)
         inflation = self.model_inflation.predict(X)
         ipcn = self.model_ipcn.predict(X)
         unemploy = self.model_unemployment.predict(X)
@@ -438,6 +444,7 @@ class EconomicSimulator(object):
     def run_all_simulation(self, Rt, population_total, init_date, df, vaccinated_peer_day=None):
 
         simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date, vaccinated_peer_day=vaccinated_peer_day)
+        
         merged = pd.merge(simulation["ALL"], simulation["A"], suffixes=["_ALL", "_A"], on="Date")
 
         for key in simulation.keys():
@@ -447,10 +454,7 @@ class EconomicSimulator(object):
         df["Date"] = pd.to_datetime(df["Date"])
         merged_final = pd.merge(merged, df, on="Date")
 
-        merged_final.to_csv('simulations_from_2020-04-30_to_2021-02-16.csv')
-        print(merged_final)
-        exit()
-        merged_final = self.predict_economic(merged_final)
+        merged_final = self.predict_economic(merged)
 
         merged_final.index = merged_final["Date"]
 
@@ -474,9 +478,24 @@ class EconomicSimulator(object):
 
         X_lift = self.scaler.transform(df[columns])
         y_lift = self.mlp_clf.predict(X_lift)
-        y_lift = np.clip(y_lift/2,0,2)
+        # y_lift = np.clip(y_lift, 0, 10)
 
         Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
+
+        # print(self.initial_df)
+        # Rt.index = df['Date']
+        # plt.figure()
+        # plt.title('predicted Rt')
+        # Rt['ALL'].plot()
+        # plt.legend()
+
+        # plt.figure()
+        # plt.title('Initial df')
+        # self.initial_df.loc[df['Date']]['ALL'].plot()
+        # plt.legend()
+        # Rt.reset_index(drop=True, inplace=True)
+        # plt.show()
+        # exit()
 
         if 'vaccinated_peer_week' in measures[0]:
             idx_vaccinated_value = measures[0].index('vaccinated_peer_week')
@@ -493,8 +512,8 @@ class EconomicSimulator(object):
         std_peer_features = self.metrics['std_test']  
         for model_output_feature in std_peer_features.keys():
             yvar = np.power(std_peer_features[model_output_feature],0.5) 
-            Rt_max[model_output_feature] = np.clip(Rt[model_output_feature] + yvar.mean() / 2, 0, 2)
-            Rt_min[model_output_feature] = np.clip(Rt[model_output_feature] - yvar.mean() / 2, 0, 2)
+            Rt_max[model_output_feature] = np.clip(Rt[model_output_feature] + yvar.mean() / 2, 0, 10)
+            Rt_min[model_output_feature] = np.clip(Rt[model_output_feature] - yvar.mean() / 2, 0, 10)
             
 
         # Passing dates to dataframe
@@ -529,7 +548,7 @@ class EconomicSimulator(object):
 #     if values is None:
 #         values = [["close","close"]]
 
-#     end_date = "2020-12-15"
+#     end_date = sim.initial_df.index[-1]
 
 #     simulation = sim.run(dates, measures, values, end_date)
 #     #simulation["O"].plot(title="Sector O")
@@ -537,25 +556,23 @@ class EconomicSimulator(object):
 
 #     return simulation
 
-# dt = ["2020-08-15"]
 # #run()
 # #run(measures = [["activity_restr"]],values = [["close"]])
 
 # #plt.show()
+# dt = ["2020-04-15"]
 # scenarios = []
 # measures_possibles = EconomicSimulator.possibile_inputs
 # nb_values = len(measures_possibles.keys())
 
 # combinations = []
 # values = []
-
 # max_scenarios = 50000
 
 # def iter(k, last_combinations=[], last_values=[]):
 #     for i in range(k, nb_values):
 #         ms, vs = list(measures_possibles.keys())[i], list(measures_possibles.values())[i]
 #         for v in vs:
-
 #             if len(combinations) > max_scenarios:
 #                 return
 
@@ -566,9 +583,7 @@ class EconomicSimulator(object):
 
 #             if i+1<nb_values:
 #                 iter(i + 1, last_c, last_v)
-
 #             else:
-
 #                 if len(last_c)==nb_values:
 #                     dates = dt * len(last_v)
 #                     df = run(dates=dates, measures=[last_c], values=[last_v])
@@ -577,9 +592,6 @@ class EconomicSimulator(object):
 #                     values.append(last_v)
 #                     json.dump(measures, open("scenarios/{}.json".format(len(combinations)), "w"))
 #                     df.to_csv("scenarios/{}.csv".format(len(combinations)))
-
-
 #     return
 
 # iter(0)
-# print(len(combinations))

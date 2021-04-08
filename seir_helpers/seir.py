@@ -107,4 +107,5 @@ def model(t, y, R_t, t_inc=2.9, t_inf=5.2, t_hosp0=4, t_crit0=14, m_a0=0.8, c_a0
     H_out = dH_dt(I, C, H, t_inf, t_hosp, t_crit, m_a, f_a)
     C_out = dC_dt(H, C, t_hosp, t_crit, c_a)
     D_out = dD_dt(C, t_crit, f_a)
+
     return [S_out, E_out, I_out, R_out, H_out, C_out, D_out]

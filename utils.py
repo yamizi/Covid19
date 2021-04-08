@@ -5,6 +5,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
+from scipy import stats as sps
+
 
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error,median_absolute_error
 
@@ -183,7 +186,6 @@ def error_band(data, x, hue):
         y_max = data.loc[data[hue] == line.get_label()]['Max'].values
 
         ax.fill_between(x_values, y_min, y_max, color=line.get_color(), alpha=0.2, linewidth=0.0)
-        
 
 def a12(lst1, lst2, rev=True):
     more = same = 0.0
@@ -196,3 +198,173 @@ def a12(lst1, lst2, rev=True):
             elif not rev and x < y:
                 more += 1
     return (more + 0.5*same) / (len(lst1)*len(lst2))
+
+
+
+GAMMA = 1/10
+R_T_MAX = 12
+r_t_range = np.linspace(0, R_T_MAX, R_T_MAX*100+1)
+
+def get_posteriors(sr, sigma=0.15, gamma=None):
+    min_val = 1e-20
+    # (1) Calculate Lambda
+    if gamma is None:
+      gamma=GAMMA
+    lam = sr[:-1].values * np.exp(gamma * (r_t_range[:, None] - 1))
+
+    
+    # (2) Calculate each day's likelihood
+    likelihoods = pd.DataFrame(
+        data = sps.poisson.pmf(sr[1:].values, lam),
+        index = r_t_range,
+        columns = sr.index[1:])
+    
+    # (3) Create the Gaussian Matrix
+    process_matrix = sps.norm(loc=r_t_range,
+                              scale=sigma
+                             ).pdf(r_t_range[:, None]) 
+
+    # (3a) Normalize all rows to sum to 1
+    process_matrix /= process_matrix.sum(axis=0)
+    
+    # (4) Calculate the initial prior
+    #prior0 = sps.gamma(a=4).pdf(r_t_range)
+
+    if len(r_t_range)==0:
+      print("error range")
+    prior0 = np.ones_like(r_t_range)/len(r_t_range)
+    prior0 /= prior0.sum()
+
+    # Create a DataFrame that will hold our posteriors for each day
+    # Insert our prior as the first posterior.
+    posteriors = pd.DataFrame(
+        index=r_t_range,
+        columns=sr.index,
+        data={sr.index[0]: prior0}
+    )
+    
+    # We said we'd keep track of the sum of the log of the probability
+    # of the data for maximum likelihood calculation.
+    log_likelihood = 0.0
+
+    # (5) Iteratively apply Bayes' rule
+    for previous_day, current_day in zip(sr.index[:-1], sr.index[1:]):
+
+        #(5a) Calculate the new prior
+        current_prior = process_matrix @ posteriors[previous_day]
+        
+        #(5b) Calculate the numerator of Bayes' Rule: P(k|R_t)P(R_t)
+        numerator = likelihoods[current_day] * current_prior
+        
+        #(5c) Calcluate the denominator of Bayes' Rule P(k)
+        denominator = np.sum(numerator)
+        
+        # Execute full Bayes' Rule
+        if denominator==0:
+          #print("error denominator")
+          denominator = min_val
+        posteriors[current_day] = numerator/denominator
+        
+        # Add to the running sum of log likelihoods
+        log_likelihood += np.log(denominator)
+    
+    return posteriors, log_likelihood
+
+def prepare_cases(cases, cutoff=25, new_provided=False):
+    if new_provided:
+      new_cases = cases
+    else:
+      new_cases =cases.diff()
+    
+    new_cases[new_cases < 0] = 0
+
+    smoothed = new_cases.rolling(7,
+        win_type='gaussian',
+        min_periods=1,
+        center=True).mean(std=2).round()
+    
+    idx_start = np.searchsorted(smoothed, cutoff)
+    smoothed = smoothed.iloc[idx_start:]
+    original = new_cases.loc[smoothed.index]
+    
+    return original, smoothed
+
+
+def highest_density_interval(pmf, p=.9, debug=False):
+    # If we pass a DataFrame, just call this recursively on the columns
+    if(isinstance(pmf, pd.DataFrame)):
+  
+      return pd.DataFrame([highest_density_interval(pmf[col], p=p) for col in pmf],
+                            index=pmf.columns)
+    
+    cumsum = np.cumsum(pmf.values)
+    
+    # N x N matrix of total probability mass for each low, high
+    total_p = cumsum - cumsum[:, None]
+    
+    # Return all indices with total_p > p
+    lows, highs = (total_p > p).nonzero()
+    
+    # Find the smallest range (highest density)
+    best = (highs - lows)
+    #print(pmf.values)
+    best = best.argmin() if len(best) else 0
+
+    low = pmf.index[lows[best]]
+    high = pmf.index[highs[best]]
+    
+    return pd.Series([low, high],
+                     index=[f'Low_{p*100:.0f}',
+                            f'High_{p*100:.0f}'])
+
+
+
+def compute_sector_rt(df, new_provided=False, max_elements=1):
+  sectors_output={}
+  for i, sector_name in tqdm(enumerate(df.columns.to_list()), total=len(df.columns.to_list())):
+    if i>=max_elements:
+      break
+
+
+    cases = df[sector_name]*100
+    
+    original, smoothed = prepare_cases(cases, cutoff=5, new_provided=new_provided)
+    original = pd.DataFrame(original)
+    #smoothed = pd.DataFrame(smoothed)
+    if len(smoothed) ==0:
+      print(sector_name, "not enough cases")
+      continue
+
+    #Posteriors & Rt
+    posteriors, _ = get_posteriors(smoothed, sigma=0.5)
+ 
+    #posteriors= posteriors.fillna(1e-20)
+    hdis_90 = None
+    hdis_50 = None
+    try:
+      hdis_90 = highest_density_interval(posteriors, p=.9, debug=True)
+    except Exception as e:
+    #   print(e)
+        pass
+    
+    #hdis_50 = highest_density_interval(posteriors, p=.5)
+    most_likely = posteriors.idxmax().rename('ML')
+    sectors_output[sector_name] = most_likely
+
+  return sectors_output
+
+
+def case_time(var):
+    if var < pd.to_datetime("2020-03-16").date():
+        return 3
+    elif var >= pd.to_datetime("2020-03-16").date() and var < pd.to_datetime("2020-05-04").date():
+        return 0
+    elif var > pd.to_datetime("2020-07-17").date() and var < pd.to_datetime("2020-09-15").date():
+        return 0
+    elif var >= pd.to_datetime("2020-05-04").date() and var < pd.to_datetime("2020-06-29").date():
+        return 1
+    elif var >= pd.to_datetime("2020-06-29").date() and var <= pd.to_datetime("2020-07-16").date():
+        return 2
+    else:
+        return 2
+
