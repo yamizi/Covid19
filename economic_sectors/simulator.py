@@ -282,10 +282,6 @@ class EconomicSimulator(object):
 
         total_pop = sectors_workers[sectors_workers["sector"]=='ALL'].values[0][1]
 
-        # print(sectors.to_list())
-        # print(sectors_workers.sort_values(by='sector')['sector'].to_list())
-        # exit()
-
         for sector in sectors:
 
             # print('[+]',sector)
@@ -425,13 +421,27 @@ class EconomicSimulator(object):
     def predict_economic(self, data):
         df = data.drop(["Date"], axis=1)
 
-        X = df.values
+        cols = df.columns.to_list()
+
+        cols = list(filter(lambda c: not 'Critical' in c, cols))
+        cols = list(filter(lambda c: not 'Deaths' in c, cols))
+        cols = list(filter(lambda c: not 'Hospital' in c, cols))
+        cols = list(filter(lambda c: not '_min' in c, cols))
+        cols = list(filter(lambda c: not '_max' in c, cols))
+        cols = list(filter(lambda c: not 'population' in c, cols))
+
+        # print('*******')
+
+        X = df[cols].values
 
         # X = self.economic_scaler.transform(df)
         inflation = self.model_inflation.predict(X)
-        ipcn = self.model_ipcn.predict(X)
         unemploy = self.model_unemployment.predict(X)
         export = self.model_export.predict(X)
+
+        cols.append('population')
+        X = df[cols].values
+        ipcn = self.model_ipcn.predict(X)
 
         data["inflation"] = inflation
         data["ipcn"] = ipcn
@@ -449,12 +459,21 @@ class EconomicSimulator(object):
 
         for key in simulation.keys():
             if key!="ALL" and key!="A":
-                merged = pd.merge(merged, simulation[key], suffixes=["", "_{}".format(key)], on="Date")
+                simu_key = simulation[key]
+                renamed_cols = [e + '_{}'.format(key) for e in simu_key.columns[1:]]
+                rename_dict = dict(zip(simu_key.columns[1:], renamed_cols))
+                simu_key = simu_key.rename(columns=rename_dict)
+                
+                merged = pd.merge(merged, simu_key, on="Date")
 
         df["Date"] = pd.to_datetime(df["Date"])
-        merged_final = pd.merge(merged, df, on="Date")
 
-        merged_final = self.predict_economic(merged)
+        merged_ = pd.merge(merged, df[['Date','population']], on="Date")
+
+        merged_ = self.predict_economic(merged_)
+        merged_ = merged_.drop(["population"], axis=1)
+
+        merged_final = pd.merge(merged_, df, on="Date")
 
         merged_final.index = merged_final["Date"]
 
@@ -535,6 +554,7 @@ class EconomicSimulator(object):
                                      left_index=True, right_index=True)
         simulation_merged = pd.merge(simulation_merged, simulation_merged_min, suffixes=['','_min'], 
                                      left_index=True, right_index=True)
+
 
         return simulation_merged
 
