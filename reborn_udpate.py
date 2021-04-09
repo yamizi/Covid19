@@ -21,8 +21,8 @@ BACKUP_FOLDER = './backups/{}'.format(datetime.datetime.now().strftime("%Y-%m-%d
 
 
 
-def compute_Rt_from_cases():
-    sectors2_df = pd.read_excel("PJG397_Covid19_daily_workSector_Residents_IGSS.xlsx", "Daily_Infections_by_Sector")
+def compute_Rt_from_cases(IGSS_file_path):
+    sectors2_df = pd.read_excel(IGSS_file_path, "Daily_Infections_by_Sector")
     sectors2_df["date"] = pd.to_datetime(sectors2_df['Dates\Age Range'])
     sectors2_df.index = pd.to_datetime(sectors2_df.date)
     sectors2_df = sectors2_df.drop(["date",'Dates\Age Range'], axis=1).dropna()
@@ -224,7 +224,7 @@ if __name__ == "__main__":
 
     print('[+] Re-compute Rt from new cases file')
     print('[+] File location :', args.IGSS_dataset_path)
-    start_date, end_date = compute_Rt_from_cases()
+    start_date, end_date = compute_Rt_from_cases(args.IGSS_dataset_path)
 
     print('[+] Replace IGSS cases file...')
     shutil.copy2(args.IGSS_dataset_path, DATA_PATH + '/PJG397_Covid19_daily_workSector_Residents_IGSS.xlsx')
