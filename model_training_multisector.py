@@ -8,6 +8,8 @@ from sklearn.neural_network import MLPRegressor
 import numpy as np
 from tqdm import tqdm
 
+import matplotlib.pyplot as plt 
+
 
 def split_data(data, by="random", on=None, feature_columns=None, target_columns = 'R'):
     feature_columns = utils.get_feature_columns() if feature_columns is None else feature_columns
@@ -43,6 +45,7 @@ def find_best_model(X_train, y_train, X_test, y_test):
             'hidden_layer_sizes': [(1000,50),], #[(1000,50),(50, 100, 50), (50, 100, 100), (50, 500, 50)],
             'alpha': [0.0001, 0.05]
         }
+
 
         mlp = MLPRegressor((1000,50),max_iter=1500, verbose=True, solver="adam")
         mlp_clf = GridSearchCV(mlp, parameter_space, n_jobs=-1, cv=3, verbose=True)
@@ -92,10 +95,10 @@ def train_mlp(data, target_columns, split_by='random', split_on=None, output_suf
     all_columns = data.columns
     feature_columns = [x for x in all_columns if x not in target_columns]
 
-    X_train, y_train, X_test, y_test = split_data(data, by=split_by, on=split_on, feature_columns=feature_columns, target_columns = target_columns)
+    X_train, y_train, X_test, y_test = split_data(data, by=split_by, on=split_on, feature_columns=feature_columns, 
+                                                  target_columns = target_columns)
     scaler, X_train_scaled, X_test_scaled = scale_data(X_train, X_test)
 
-    
     model, reports = find_best_model(X_train_scaled, y_train, X_test_scaled, y_test)
 
 
@@ -114,9 +117,10 @@ def train_mlp(data, target_columns, split_by='random', split_on=None, output_suf
 
 if __name__ == '__main__':
     t_start = time.perf_counter()
-    data, y = utils.load_luxembourg_dataset()
+    data, y = utils.load_luxembourg_dataset(get_past_rt_as_features=True)
 
     model, reports = train_mlp(data, y, output_suffix="economic_sectors")
+
     print(reports)
 
     t_stop = time.perf_counter()
