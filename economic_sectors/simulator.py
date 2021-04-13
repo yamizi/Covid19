@@ -49,7 +49,7 @@ class EconomicSimulator(object):
                                                     "pop": population["pop"].sum()}, ignore_index=True)
 
         if initial_dataframe is None and country=="luxembourg":
-            initial_dataframe = load_luxembourg_dataset()
+            initial_dataframe = load_luxembourg_dataset(get_past_rt_as_features=True)
 
         self.initial_df, self.ml_outputs = initial_dataframe
         self.ml_inputs = self.initial_df.columns
@@ -126,6 +126,7 @@ class EconomicSimulator(object):
         for k, measure_to_change in enumerate(measures_to_change):
             # Initialise the dataset, 
             # `update_seir` needs 14 days before `init_date` to do his computations
+            # (initial conditions)
             seir_day_offset = 14 
 
             df_begin_date = init_date - timedelta(days=seir_day_offset)
@@ -187,9 +188,22 @@ class EconomicSimulator(object):
         return population
 
 
-    def update_ML_params(self,obj):
+    def update_ML_params(self,obj:dict) -> dict:
+        """Update inputs for the Rt model
+        This function uses 
+
+        Args:
+            obj (dict): A row of our initial dataframe transformed into a dictionnary
+
+        Returns:
+            dict: the updated row.
+        """
         # Activity Resctrictions
         obj["population"] = self.update_population(obj["b_be"],obj["b_fr"],obj["b_de"],obj["activity_restr"])
+
+        sim_date = obj['Date']
+        date_shift =  sim_date - timedelta(days=120)
+        initial_df = self.initial_df.loc[date_shift:sim_date]
             
         if obj["resp_gov_measure"] == 'yes':
             obj["H1"] = 2
@@ -202,76 +216,79 @@ class EconomicSimulator(object):
 
         # Borders
         if obj["b_be"] == 'close' or obj["b_fr"] == 'close' or obj["b_de"] == 'close':
-            obj["C8"] = 0
-            obj["C5"] = 0.5
-            obj["transit"] = self.initial_df['transit'].max()
+            obj["C8"] = initial_df['C8'].min()
+            obj["C5"] = initial_df['C5'].min()
+            obj["transit"] = initial_df['transit'].min()
 
         else:
             obj["C8"] = 1
 
         # Travel
         if obj["travel_m"] == 'no':
-            obj["C8"] = 0
-            obj["C5"] = 0.5
-            obj["transit"] = self.initial_df['transit'].min()
+            obj["C8"] = initial_df['C8'].min()
+            obj["C5"] = initial_df['C5'].min()
+            obj["transit"] = initial_df['transit'].min()
         else:
             obj["C8"] = 1
             obj["C5"] = 1
-            obj["transit"] = self.initial_df['transit'].max()
+            obj["transit"] = initial_df['transit'].max()
 
         # Parks
         if obj["parks_m"] == 'yes':
-            obj["parks"] = max(self.initial_df['parks'])
+            obj["parks"] = max(initial_df['parks'])
         else:
-            obj["parks"] = min(self.initial_df['parks'])
+            obj["parks"] = min(initial_df['parks'])
 
         # Schools
         # Is Preventive measure missing ? 
         if obj["schools_m"] == 'open':
-            obj["C1"] = 3
+            obj["C1"] = initial_df['C1'].max()
         elif obj["schools_m"] == 'close':
-            obj["C1"] = 0
+            obj["C1"] = initial_df['C1'].min()
         elif obj["schools_m"] == 'partial':
-            obj["C1"] = 1
+            obj["C1"] = initial_df['C1'].mean()
         else:
             obj["C1"] = 2
 
         # Gatherings
         if obj["public_gath"] == 'no':
-            obj["C3"] = 1
+            obj["C3"] = initial_df['C3'].min()
         else:
-            obj["C3"] = 0
+            obj["C3"] = initial_df['C3'].max()
 
 
         # Where are conditions for {10, 20} ? 
         if obj["private_gath"] == 0:
-            obj["C4"] = 1
+            obj["C4"] = initial_df['C4'].max()
         elif obj["private_gath"] == 1000:
-            obj["C4"] = 0
+            obj["C4"] = initial_df['C4'].min()
 
         if obj["activity_restr"] == 'close':
-            obj["retail/recreation"] = self.initial_df['retail/recreation'].min()
-            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].min()
-            obj["workplaces"] = self.initial_df['workplaces'].min()
-            obj["C2"] = 1
-            obj["C6"] = 1
-            obj["C7"] = 1
-            obj["transit"], obj["driving"], obj["public_transport"], obj["walking"] = -100, -100 ,-100, -100
+            obj["retail/recreation"] = initial_df['retail/recreation'].min()
+            obj["grocery/pharmacy"] = initial_df['grocery/pharmacy'].min()
+            obj["workplaces"] = initial_df['workplaces'].min()
+            obj["C2"] = initial_df['C2'].min()
+            obj["C6"] = initial_df['C6'].min()
+            obj["C7"] = initial_df['C7'].min()
+            obj["transit"] = initial_df["transit"].min()
+            obj["driving"] = initial_df["driving"].min()
+            obj["public_transport"] = initial_df["public_transport"].min()
+            obj["walking"] = initial_df["walking"].min() 
 
         elif obj["activity_restr"] == 'mixed':
-            obj["retail/recreation"] = self.initial_df['retail/recreation'].mean()
-            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].mean()
-            obj["workplaces"] = self.initial_df['workplaces'].mean()
-            obj["C2"] = 0.5
-            obj["C6"] = 0.5
-            obj["C7"] = 0.5
+            obj["retail/recreation"] = initial_df['retail/recreation'].mean()
+            obj["grocery/pharmacy"] = initial_df['grocery/pharmacy'].mean()
+            obj["workplaces"] = initial_df['workplaces'].mean()
+            obj["C2"] = initial_df['C2'].mean()
+            obj["C6"] = initial_df['C6'].mean()
+            obj["C7"] = initial_df['C7'].mean()
         else:
-            obj["retail/recreation"] = max(self.initial_df['retail/recreation'])
-            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].max()
-            obj["workplaces"] = self.initial_df['workplaces'].max()
-            obj["C2"] = 0
-            obj["C6"] = 0
-            obj["C7"] = 0
+            obj["retail/recreation"] = max(initial_df['retail/recreation'])
+            obj["grocery/pharmacy"] = initial_df['grocery/pharmacy'].max()
+            obj["workplaces"] = initial_df['workplaces'].max()
+            obj["C2"] = initial_df['C2'].max()
+            obj["C6"] = initial_df['C6'].max()
+            obj["C7"] = initial_df['C7'].max()
         return obj
 
     def simulate(self, Rt_sector, population_total, deaths_per_sectors=None, init_date=None, vaccinated_peer_day=None):
@@ -288,7 +305,7 @@ class EconomicSimulator(object):
             # print('[+]',sectors_workers[sectors_workers["sector"]==sector])
 
             sector_df = Rt_sector[["Date", sector]]
-            ## Normaliser le Rt avec la distribution nationale
+            # Normaliser le Rt avec la distribution nationale
             sector_df.columns = ["Date", "R"]
 
             sector_population = sectors_workers[sectors_workers["sector"]==sector].values[0][1]
@@ -296,8 +313,6 @@ class EconomicSimulator(object):
 
             cases =  pd.DataFrame(data={"ConfirmedCases":self.cases[sector], "Date":self.cases.index}, 
                                   index=self.cases.index)
-
-            # print(self.cases)
 
             cases["Date"] = pd.to_datetime(cases["Date"])
             sector_df["Date"] = pd.to_datetime(sector_df["Date"])
@@ -331,15 +346,9 @@ class EconomicSimulator(object):
 
                 sector_df.reset_index(drop=True, inplace=True)
 
-
-            # print('[+]', sector)
-
-
             simulation = self.update_seir(sector_df, active_date=init_date, e_date=dates[-1],
                                           population=sector_population*susceptible_factor)
 
-            #simulation.index = simulation["Date"]
-            #simulation = simulation.drop(["Date"], axis=1)
             simulations[sector] = simulation
 
         return simulations
@@ -352,14 +361,9 @@ class EconomicSimulator(object):
         # t_hosp=7, t_crit=14, m_a=0.7, c_a=0.1, f_a=0.3
         params = [7, 10, 0.8, 0.3, 0.1]
         
-        # Decay values 
+        # Decay values
         params.append(False)
 
-
-        # print(df)
-        # print(active_date + timedelta(days=-7))
-        # print(active_date + timedelta(days=-14))
-        # exit()
         data = df[df["Date"] >= active_date]
         ref_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-7))]
         inf_data = df[df["Date"] == pd.to_datetime(active_date + timedelta(days=-14))]
@@ -383,7 +387,7 @@ class EconomicSimulator(object):
         def time_varying_reproduction(t):
             index = np.min((int(t), len(R_t) - 1))
             return R_t[index]
-        # 5., 2.9
+
         args = (time_varying_reproduction, 5., 2.9, *params)
 
         init_date = datetime.combine(active_date, datetime.min.time())
@@ -430,11 +434,11 @@ class EconomicSimulator(object):
         cols = list(filter(lambda c: not '_max' in c, cols))
         cols = list(filter(lambda c: not 'population' in c, cols))
 
-        # print('*******')
-
         X = df[cols].values
 
-        # X = self.economic_scaler.transform(df)
+        # Scaler is not used beceause our economic model show better performances 
+        # without scaler.
+        # X = self.economic_scaler.transform(df)   
         inflation = self.model_inflation.predict(X)
         unemploy = self.model_unemployment.predict(X)
         export = self.model_export.predict(X)
@@ -452,6 +456,18 @@ class EconomicSimulator(object):
 
 
     def run_all_simulation(self, Rt, population_total, init_date, df, vaccinated_peer_day=None):
+        """This funciton run all simulations. Added this function when I wanted to add confidance interval.
+
+        Args:
+            Rt (pd.DataFrame): The prediction of our Rt model wrapped to a DataFrame
+            population_total ([type]): The population dataframe, which is a columns of the result of `self.build_df` function
+            init_date (datetime.date): The begining date of the simulation.
+            df (pd.Dataframe): The dataframe generated by `self.build_df` function
+            vaccinated_peer_day (int, optional): The number of people vaccined peer day. Defaults to None.
+
+        Returns:
+            pd.DataFrame: The simulation dataframe.
+        """
 
         simulation = self.simulate(Rt, population_total, deaths_per_sectors=None, init_date=init_date, vaccinated_peer_day=vaccinated_peer_day)
         
@@ -493,6 +509,13 @@ class EconomicSimulator(object):
 
         df, init_date = self.build_df(measures, end_date, values, dates, init_date_p=init_date)
 
+        rt_ref = self.initial_df.loc[init_date]
+
+        df['ALL_past'] =rt_ref['ALL_past']
+        df['ALL_past_5'] = rt_ref['ALL_past_5']
+        df['ALL_past_10'] = rt_ref['ALL_past_10']
+        df['ALL_past_15'] = rt_ref['ALL_past_15']
+
         columns = self.metrics["x_columns"]
 
         X_lift = self.scaler.transform(df[columns])
@@ -501,25 +524,12 @@ class EconomicSimulator(object):
 
         Rt = pd.DataFrame(data=y_lift, index=df.index, columns=self.ml_outputs)
 
-        # print(self.initial_df)
-        # Rt.index = df['Date']
-        # plt.figure()
-        # plt.title('predicted Rt')
-        # Rt['ALL'].plot()
-        # plt.legend()
 
-        # plt.figure()
-        # plt.title('Initial df')
-        # self.initial_df.loc[df['Date']]['ALL'].plot()
-        # plt.legend()
-        # Rt.reset_index(drop=True, inplace=True)
-        # plt.show()
-        # exit()
-
+        # Add the vaccination measure here.
         if 'vaccinated_peer_week' in measures[0]:
             idx_vaccinated_value = measures[0].index('vaccinated_peer_week')
-            percentage_vaccinated = values[0][idx_vaccinated_value]
-            vaccinated_peer_day = self.possibile_inputs['vaccinated_peer_week'][-1]*percentage_vaccinated/700
+            percentage_vaccinated = values[0][idx_vaccinated_value]  # The value from the user interface is a purcentage.
+            vaccinated_peer_day = self.possibile_inputs['vaccinated_peer_week'][-1]*percentage_vaccinated/700  
             vaccinated_peer_day = int(np.floor(vaccinated_peer_day))
         else:
             vaccinated_peer_day = None

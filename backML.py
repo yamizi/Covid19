@@ -22,9 +22,9 @@ app = Flask(__name__, static_url_path="")
 CORS(app)
 
 
-DATE_PAST_SHIFT = 7
-SEIR_SHIFT = 14
-DATE_FUTURE_SHIFT = 20
+DATE_PAST_SHIFT = 7    # We shift the date into de past to see the difference between before users' measures and after users' measures.
+SEIR_SHIFT = 14        # Our SEIR model need initial conditions. These conditions took 7 and 15 days in the past. 
+DATE_FUTURE_SHIFT = 20 # The prediction will end 20 days after the users' date.
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -51,8 +51,8 @@ def predict():
                       measure_values=measure_values, base_folder=None, seed=seed, lift_date_values=measure_dates)
         df = df.to_dict(orient='records')
 
-    # print("processed")
-    # return jsonify({'path': seed, 'df': df})
+    print("processed")
+    return jsonify({'path': seed, 'df': df})
 
 
 @app.route('/reborn_api_limit', methods=['POST'])
@@ -71,9 +71,6 @@ def get_limit_date():
         min_date =  datetime(max_date.year, 1, 1).date()
     else:
         min_date = min_date + timedelta(days=DATE_PAST_SHIFT) + timedelta(days=SEIR_SHIFT)
-
-    # print(min_date, max_date)
-    # print(type(min_date), type(max_date))
 
     return jsonify({'min_date': min_date, 
                     'max_date': max_date })
@@ -97,15 +94,6 @@ def predict_reborn():
     dates = posted_data['dates']
     values = posted_data['values']
 
-    # If the user enter no measure in inputs,
-    # We should make predictions on the worst case.
-    if len(measures[0]) == 0:
-        measures = [['b_be', 'b_fr', 'b_de', 'schools_m', 'public_gath', 'private_gath',
-                     'parks_m', 'travel_m', 'activity_restr', 'resp_gov_measure', 'vaccinated_peer_week']]
-        values = [['open', 'open', 'open', 'open', 'yes', 1000,
-                   'yes', 'yes', 'open', 'yes', 0]]
-        dates = None
-
     # Make the time range of predictions
     # The `date` variable is the date where measures 
     # will take place.
@@ -123,26 +111,9 @@ def predict_reborn():
     end_date = end_date.strftime('%Y-%m-%d')
     init_date = init_date.strftime('%Y-%m-%d')
 
-    # print('[+] informations')
-    # print(posted_data)
-    # print(init_date)
-    # print(end_date)
-
     simulator = EconomicSimulator()
     simulation_results = simulator.run(dates, measures, values, end_date, init_date=init_date)
-    simulation_results = simulation_results.drop(columns=['Date'])
-
-    # plt.figure(figsize=(10, 8))
-    # plt.subplot(2,1,1)
-    # simulation_results['SimulationCases_ALL'].plot()
-    # simulation_results['SimulationDeaths_ALL'].plot()
-    # plt.legend()
-
-    # plt.subplot(2,1,2)
-    # simulation_results['R_ALL'].plot()
-    # plt.legend()
-    # plt.tight_layout()
-    # plt.show()
+    simulation_results = simulation_results.drop(columns=['Date'])  # Drop the date beceause date is already in index.
     
     return jsonify({'df': simulation_results.reset_index().to_dict(orient='records')})
      
@@ -191,5 +162,3 @@ def catch_all(path):
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=8080)
-    # predict_reborn()
-    # get_limit_date()

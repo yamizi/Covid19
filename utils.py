@@ -48,7 +48,7 @@ def extend_features_with_means(df,columns,smoothing_days):
 
     return df
 
-def load_luxembourg_dataset(extend_features = True):
+def load_luxembourg_dataset(extend_features = True, get_past_rt_as_features=False):
     '''
     Load data from the dataset folder, all the values for the files are hardcoded.
     We first load the google mobility dataset and merge it with demography and
@@ -68,6 +68,7 @@ def load_luxembourg_dataset(extend_features = True):
 
     apple = apple.rename({"Unnamed: 0": "Date"}, axis=1)
     sectors = sectors.rename({"Unnamed: 0": "Date"}, axis=1)
+
     y_columns = sectors.columns[1:]
 
     all_df = pd.merge(sectors, google, on="Date", how="left")
@@ -76,6 +77,17 @@ def load_luxembourg_dataset(extend_features = True):
 
     all_df.index = pd.to_datetime(all_df["Date"], format="%Y-%m-%d")
     all_df = all_df.drop(["Date"], axis=1)
+
+
+    # To stabilize our model, we need to give him a reference.
+    # So, for each prediction, we pass the previous Rt.
+    # Because without that, for strong measures, 
+    # our model will predict High Rt 
+    # Since strong measures are taken when the Rt is high.  
+    if get_past_rt_as_features:
+        all_df['ALL_past'] = sectors['ALL'].values
+        all_df['ALL_past'].iloc[1:] = all_df['ALL_past'].iloc[:-1]
+        all_df = all_df.iloc[:-1]
 
     if extend_features:
         all_columns = all_df.columns

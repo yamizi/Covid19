@@ -8,7 +8,7 @@ scenarios/*
 *.npy
 plots/*
 
-backup/*
+# backup/**
 datasets/*
 
 

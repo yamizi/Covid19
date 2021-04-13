@@ -178,7 +178,6 @@ def iter(k, last_combinations=[], last_values=[]):
     return
 
 
-
 def make_simulations_on_reborn_inputs():
     iter(0)
 
