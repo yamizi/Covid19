@@ -191,6 +191,10 @@ class EconomicSimulator(object):
     def update_ML_params(self,obj):
         # Activity Resctrictions
         obj["population"] = self.update_population(obj["b_be"],obj["b_fr"],obj["b_de"],obj["activity_restr"])
+
+        sim_date = obj['Date']
+        date_shift = obj['Date'] - timedelta(days=20)
+        initial_df = self.initial_df.loc[date_shift:sim_date]
             
         if obj["resp_gov_measure"] == 'yes':
             obj["H1"] = 2
@@ -205,74 +209,77 @@ class EconomicSimulator(object):
         if obj["b_be"] == 'close' or obj["b_fr"] == 'close' or obj["b_de"] == 'close':
             obj["C8"] = 0
             obj["C5"] = 0.5
-            obj["transit"] = self.initial_df['transit'].max()
+            obj["transit"] = initial_df['transit'].max()
 
         else:
             obj["C8"] = 1
 
         # Travel
         if obj["travel_m"] == 'no':
-            obj["C8"] = 0
-            obj["C5"] = 0.5
-            obj["transit"] = self.initial_df['transit'].min()
+            obj["C8"] = initial_df['C8'].min()
+            obj["C5"] = initial_df['C5'].min()
+            obj["transit"] = initial_df['transit'].min()
         else:
             obj["C8"] = 1
             obj["C5"] = 1
-            obj["transit"] = self.initial_df['transit'].max()
+            obj["transit"] = initial_df['transit'].max()
 
         # Parks
         if obj["parks_m"] == 'yes':
-            obj["parks"] = max(self.initial_df['parks'])
+            obj["parks"] = max(initial_df['parks'])
         else:
-            obj["parks"] = min(self.initial_df['parks'])
+            obj["parks"] = min(initial_df['parks'])
 
         # Schools
         # Is Preventive measure missing ? 
         if obj["schools_m"] == 'open':
-            obj["C1"] = 3
+            obj["C1"] = initial_df['C1'].max()
         elif obj["schools_m"] == 'close':
-            obj["C1"] = 0
+            obj["C1"] = initial_df['C1'].min()
         elif obj["schools_m"] == 'partial':
-            obj["C1"] = 1
+            obj["C1"] = initial_df['C1'].mean()
         else:
             obj["C1"] = 2
 
         # Gatherings
         if obj["public_gath"] == 'no':
-            obj["C3"] = 1
+            obj["C3"] = initial_df['C3'].min()
         else:
-            obj["C3"] = 0
+            obj["C3"] = initial_df['C3'].max()
 
 
         # Where are conditions for {10, 20} ? 
         if obj["private_gath"] == 0:
-            obj["C4"] = 1
+            obj["C4"] = initial_df['C4'].max()
         elif obj["private_gath"] == 1000:
-            obj["C4"] = 0
+            obj["C4"] = initial_df['C4'].min()
 
         if obj["activity_restr"] == 'close':
-            obj["retail/recreation"] = self.initial_df['retail/recreation'].min()
-            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].min()
-            obj["workplaces"] = self.initial_df['workplaces'].min()
-            obj["C2"] = 1
-            obj["C6"] = 1
-            obj["C7"] = 1
-            obj["transit"], obj["driving"], obj["public_transport"], obj["walking"] = -100, -100 ,-100, -100
+            obj["retail/recreation"] = initial_df['retail/recreation'].min()
+            obj["grocery/pharmacy"] = initial_df['grocery/pharmacy'].min()
+            obj["workplaces"] = initial_df['workplaces'].min()
+            obj["C2"] = initial_df['C2'].min()
+            obj["C6"] = initial_df['C6'].min()
+            obj["C7"] = initial_df['C7'].min()
+            obj["transit"] = initial_df["transit"].min()
+            obj["driving"] = initial_df["driving"].min()
+            obj["public_transport"] = initial_df["public_transport"].min()
+            obj["walking"] = initial_df["walking"].min() 
 
         elif obj["activity_restr"] == 'mixed':
-            obj["retail/recreation"] = self.initial_df['retail/recreation'].mean()
-            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].mean()
-            obj["workplaces"] = self.initial_df['workplaces'].mean()
-            obj["C2"] = 0.5
-            obj["C6"] = 0.5
-            obj["C7"] = 0.5
+            obj["retail/recreation"] = initial_df['retail/recreation'].mean()
+            obj["grocery/pharmacy"] = initial_df['grocery/pharmacy'].mean()
+            obj["workplaces"] = initial_df['workplaces'].mean()
+            obj["C2"] = initial_df['C2'].mean()
+            obj["C6"] = initial_df['C6'].mean()
+            obj["C7"] = initial_df['C7'].mean()
         else:
-            obj["retail/recreation"] = max(self.initial_df['retail/recreation'])
-            obj["grocery/pharmacy"] = self.initial_df['grocery/pharmacy'].max()
-            obj["workplaces"] = self.initial_df['workplaces'].max()
-            obj["C2"] = 0
-            obj["C6"] = 0
-            obj["C7"] = 0
+            obj["retail/recreation"] = max(initial_df['retail/recreation'])
+            obj["grocery/pharmacy"] = initial_df['grocery/pharmacy'].max()
+            obj["workplaces"] = initial_df['workplaces'].max()
+            obj["C2"] = initial_df['C2'].max()
+            obj["C6"] = initial_df['C6'].max()
+            obj["C7"] = initial_df['C7'].max()
         return obj
 
     def simulate(self, Rt_sector, population_total, deaths_per_sectors=None, init_date=None, vaccinated_peer_day=None):
