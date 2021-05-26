@@ -27,7 +27,7 @@ class EconomicSimulator(object):
           "travel_m":["yes", "no"],
           "activity_restr":["open", "close", "mixed"],
           "social_dist": ["yes", "no"],
-          "vaccinated_peer_week":[0, 30000]
+          "vaccinated_peer_week":[0, 50000]
         }
 
 
